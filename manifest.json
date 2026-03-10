@@ -1,0 +1,18 @@
+{
+  "name": "Aura Timer Pro",
+  "short_name": "Aura",
+  "description": "Interval Timer für Sport — Tabata, HIIT, MST & mehr",
+  "start_url": "./aura-timer-pro-v2.html",
+  "display": "standalone",
+  "background_color": "#06080c",
+  "theme_color": "#06080c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2306080c'/%3E%3Ccircle cx='50' cy='52' r='28' fill='none' stroke='%234d9fff' stroke-width='5' stroke-dasharray='160 16' stroke-linecap='round' transform='rotate(-90 50 52)'/%3E%3Ccircle cx='50' cy='52' r='28' fill='none' stroke='%2300e5a0' stroke-width='5' stroke-dasharray='0 176' stroke-linecap='round'/%3E%3Cline x1='50' y1='14' x2='50' y2='24' stroke='%234d9fff' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='52' r='3' fill='%23f0f4f8'/%3E%3Cline x1='50' y1='52' x2='50' y2='36' stroke='%23f0f4f8' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#06080c">
+    <link rel="manifest" href="manifest.json">
+    <title>Aura Timer Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #06080c;
+            --surface: rgba(255,255,255,0.035);
+            --surface-hover: rgba(255,255,255,0.07);
+            --border: rgba(255,255,255,0.06);
+            --accent-work: #00e5a0;
+            --accent-rest: #ff3d6b;
+            --accent-prep: #4d9fff;
+            --accent-stopwatch: #fbbf24;
+            --accent-countdown: #a78bfa;
+            --text-main: #f0f4f8;
+            --text-dim: #3d4f61;
+            --text-mid: #7a8fa3;
+            --glow-color: var(--accent-prep);
+        }
+        * { -webkit-tap-highlight-color:transparent; user-select:none; box-sizing:border-box; margin:0; padding:0; }
+        body {
+            background:var(--bg); color:var(--text-main);
+            font-family:'Outfit',sans-serif;
+            height:100dvh; display:flex; justify-content:center; overflow:hidden;
+        }
+        body::after {
+            content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+            opacity:0.03;
+        }
+        .aura-bg {
+            position:fixed; inset:0; pointer-events:none; z-index:1;
+            background:radial-gradient(ellipse 80% 55% at 50% 28%, var(--glow-color) 0%, transparent 70%);
+            opacity:0.12; transition:all 0.9s ease;
+        }
+        .app-container {
+            width:100%; max-width:460px;
+            padding:max(env(safe-area-inset-top),14px) 20px max(env(safe-area-inset-bottom),16px);
+            display:flex; flex-direction:column; align-items:center;
+            z-index:2; height:100%;
+        }
+        /* Mode tabs */
+        .mode-switcher {
+            display:inline-flex; background:rgba(255,255,255,0.04);
+            border:1px solid var(--border); border-radius:100px;
+            padding:3px; margin:6px 0 16px;
+        }
+        .mode-btn {
+            background:none; border:none; color:var(--text-dim);
+            padding:6px 15px; border-radius:100px; cursor:pointer;
+            font-family:'Outfit',sans-serif; font-size:0.75rem; font-weight:600;
+            letter-spacing:0.06em; text-transform:uppercase; transition:all 0.2s;
+        }
+        .mode-btn.active { background:#fff; color:#000; }
+        /* Presets */
+        .preset-row { display:flex; gap:6px; margin:0 0 14px; flex-wrap:wrap; justify-content:center; }
+        .preset-btn {
+            background:var(--surface); border:1px solid var(--border); color:var(--text-mid);
+            padding:5px 12px 6px; border-radius:9px; cursor:pointer;
+            font-family:'Outfit',sans-serif; font-size:0.73rem; font-weight:600;
+            transition:all 0.18s; display:flex; flex-direction:column; align-items:center; gap:1px;
+            position:relative;
+        }
+        .preset-del {
+            position:absolute; top:-5px; right:-5px;
+            width:17px; height:17px; border-radius:50%;
+            background:rgba(255,61,107,0.75); color:#fff;
+            font-size:0.65rem; display:flex; align-items:center; justify-content:center;
+            border:none; cursor:pointer; line-height:1; padding:0;
+        }
+        .preset-del:active { background:var(--accent-rest); transform:scale(0.9); }
+        .mst-stage-dur { cursor:pointer; transition:opacity 0.15s; }
+        .mst-stage-dur:active { opacity:0.6; transform:scale(0.95); }
+        .preset-sub { font-size:0.6rem; color:var(--text-dim); font-weight:400; }
+        .preset-btn:active { background:rgba(255,255,255,0.1); transform:scale(0.95); }
+        .preset-btn.custom-slot { border-style:dashed; }
+        .preset-btn.mst-preset { border-color:rgba(251,191,36,0.22); color:#fbbf24; }
+        /* Timer ring — no filter/shadow on viewport, only on circle element */
+        .timer-viewport {
+            position:relative; width:64vw; max-width:250px;
+            aspect-ratio:1/1; display:flex; justify-content:center; align-items:center; flex-shrink:0;
+        }
+        .progress-svg { transform:rotate(-90deg); width:100%; height:100%; overflow:visible; }
+        .circle-bg { stroke:rgba(255,255,255,0.05); fill:none; stroke-width:3; }
+        .circle-progress {
+            fill:none; stroke-width:3; stroke-linecap:round;
+            filter:drop-shadow(0 0 7px var(--glow-color));
+            transition:stroke 0.5s ease;
+        }
+        .circle-outer-bg { stroke:rgba(255,255,255,0.04); fill:none; stroke-width:1.2; }
+        .circle-outer { fill:none; stroke-width:1.2; stroke-linecap:round; opacity:0.38; transition:stroke 0.5s ease; }
+        .timer-content { position:absolute; text-align:center; width:100%; padding:8px; }
+        .status-label {
+            font-family:'Outfit',sans-serif;
+            font-size:0.58rem; letter-spacing:0.45em; text-transform:uppercase;
+            color:var(--text-dim); margin-bottom:4px;
+        }
+        .main-time {
+            font-family:'Outfit',sans-serif; font-weight:300;
+            font-variant-numeric:tabular-nums; margin:4px 0; line-height:1; letter-spacing:0.02em;
+        }
+        /* Two sizes: normal (interval/countdown) and small (stopwatch MM:SS.d) */
+        .sz-normal { font-size:3.3rem; }
+        .sz-small  { font-size:2.45rem; }
+        .sub-info { font-family:'Outfit',sans-serif; font-size:0.65rem; color:var(--text-dim); min-height:1em; margin-top:5px; }
+        /* Paused */
+        .paused .circle-progress { animation:pulse 1.8s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.22} }
+        .paused-overlay { display:none; position:absolute; inset:0; justify-content:center; align-items:center; border-radius:50%; }
+        .paused .paused-overlay { display:flex; }
+        .paused-icon { font-size:1.7rem; opacity:0.4; }
+        /* Dynamic zone */
+        .dynamic-content {
+            flex-grow:1; width:100%; display:flex; flex-direction:column;
+            justify-content:center; overflow:hidden; margin:14px 0 10px; min-height:0;
+        }
+        /* Wheels */
+        .setup-area {
+            display:flex; width:100%; background:var(--surface);
+            border-radius:22px; padding:16px 6px; justify-content:space-around; border:1px solid var(--border);
+        }
+        .picker-group { flex:1; display:flex; flex-direction:column; align-items:center; min-width:0; }
+        .picker-label { font-family:'Outfit',sans-serif; font-size:0.5rem; color:var(--text-dim); font-weight:700; margin-bottom:8px; letter-spacing:0.18em; }
+        .wheel-container { display:flex; justify-content:center; align-items:center; width:100%; }
+        .wheel {
+            height:120px; overflow-y:scroll; scroll-snap-type:y mandatory;
+            scrollbar-width:none; width:100%; max-width:42px;
+            mask-image:linear-gradient(to bottom,transparent,black 36%,black 64%,transparent);
+        }
+        .wheel::-webkit-scrollbar { display:none; }
+        .wheel div {
+            height:40px; display:flex; justify-content:center; align-items:center;
+            scroll-snap-align:center; font-family:'Outfit',sans-serif;
+            font-size:1.12rem; color:var(--text-dim); font-variant-numeric:tabular-nums; width:100%;
+        }
+        .wheel div.selected { color:#fff; font-size:1.35rem; }
+        .colon { font-family:'Outfit',sans-serif; font-size:1.1rem; color:var(--text-dim); margin:0 1px; }
+        /* Total duration */
+        .total-duration-bar {
+            margin-top:10px; padding:9px 16px; background:var(--surface);
+            border-radius:12px; border:1px solid var(--border);
+            display:flex; justify-content:space-between; align-items:center;
+        }
+        .total-duration-bar .lbl { font-size:0.58rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.12em; font-weight:600; }
+        .total-duration-bar .val { font-family:'Outfit',sans-serif; font-size:0.78rem; color:var(--text-main); }
+        /* Splits */
+        .split-container {
+            width:100%; height:100%; overflow-y:scroll; border-radius:18px;
+            background:var(--surface); border:1px solid var(--border);
+            -webkit-overflow-scrolling:touch; scrollbar-width:none;
+        }
+        .split-container::-webkit-scrollbar { display:none; }
+        .split-header {
+            position:sticky; top:0; background:#0c1018; border-bottom:1px solid var(--border);
+            display:flex; justify-content:space-between; align-items:center; padding:11px 16px; z-index:10;
+        }
+        .split-header-title { font-size:0.58rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--text-dim); font-weight:700; }
+        .copy-splits-btn { background:none; border:1px solid var(--border); color:var(--text-mid); padding:3px 9px; border-radius:7px; font-family:'Outfit',sans-serif; font-size:0.63rem; cursor:pointer; }
+        table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; }
+        td { padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.03); text-align:left; font-family:'Outfit',sans-serif; font-size:0.75rem; color:var(--text-dim); }
+        td:first-child { color:var(--text-mid); }
+        td:last-child { color:var(--text-main); }
+        tr.best-split td { color:var(--accent-work); }
+        tr.worst-split td { color:var(--accent-rest); }
+        /* Countdown */
+        .countdown-setup { display:flex; flex-direction:column; gap:10px; width:100%; }
+        .countdown-presets { display:flex; gap:7px; flex-wrap:wrap; }
+        .countdown-preset {
+            background:var(--surface); border:1px solid var(--border); color:var(--text-mid);
+            padding:6px 13px; border-radius:9px; cursor:pointer;
+            font-family:'Outfit',sans-serif; font-size:0.75rem; font-weight:600; transition:all 0.18s;
+        }
+        .countdown-preset:active { background:var(--surface-hover); transform:scale(0.95); }
+        .countdown-wheel-row {
+            display:flex; justify-content:center; align-items:center; gap:8px;
+            background:var(--surface); border-radius:18px; padding:14px; border:1px solid var(--border);
+        }
+        /* MST */
+        .mst-setup { display:flex; flex-direction:column; gap:8px; width:100%; }
+        .mst-label { font-size:0.58rem; font-weight:700; color:var(--text-dim); letter-spacing:0.16em; text-transform:uppercase; padding:0 2px; }
+        .mst-stages { background:var(--surface); border:1px solid var(--border); border-radius:18px; overflow:hidden; }
+        .mst-stage { display:flex; align-items:center; gap:11px; padding:11px 15px; border-bottom:1px solid var(--border); }
+        .mst-stage:last-child { border-bottom:none; }
+        .mst-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+        .mst-stage-info { flex:1; }
+        .mst-stage-name { font-size:0.8rem; font-weight:600; color:var(--text-main); }
+        .mst-stage-detail { font-family:'Outfit',sans-serif; font-size:0.6rem; color:var(--text-dim); margin-top:1px; }
+        .mst-stage-dur { font-family:'Outfit',sans-serif; font-size:0.75rem; color:var(--text-mid); background:rgba(255,255,255,0.04); border-radius:7px; padding:3px 9px; border:1px solid var(--border); }
+        .mst-total { padding:9px 15px; background:rgba(251,191,36,0.05); border:1px solid rgba(251,191,36,0.1); border-radius:11px; display:flex; justify-content:space-between; align-items:center; }
+        .mst-total-lbl { font-size:0.58rem; font-weight:700; color:#fbbf24; letter-spacing:0.12em; text-transform:uppercase; }
+        .mst-total-val { font-family:'Outfit',sans-serif; font-size:0.82rem; color:#fbbf24; }
+        /* Controls */
+        .controls-area { flex-shrink:0; width:100%; display:flex; gap:10px; padding-bottom:2px; }
+        .btn {
+            flex:1; padding:17px; border-radius:18px;
+            font-family:'Outfit',sans-serif; font-size:0.88rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:0.06em; cursor:pointer; border:none; transition:all 0.15s;
+        }
+        .btn:active { transform:scale(0.97); }
+        /* Start button: glowing gradient that adapts to current mode color */
+        .btn-start {
+            background:linear-gradient(140deg, var(--btn-glow,#4d9fff) 0%, color-mix(in srgb,var(--btn-glow,#4d9fff) 45%,#000) 100%);
+            color:#000;
+            box-shadow:0 0 26px -5px var(--btn-glow,#4d9fff), inset 0 1px 0 rgba(255,255,255,0.22);
+        }
+        .btn-reset { color:var(--accent-rest); background:rgba(255,61,107,0.08); border:1px solid rgba(255,61,107,0.17); }
+        .btn-split { background:var(--surface); color:#fff; border:1px solid var(--border); }
+        .btn-pause { background:rgba(255,255,255,0.06); color:#fff; border:1px solid var(--border); }
+        .btn-pause.paused-state { background:rgba(0,229,160,0.09); color:var(--accent-work); border-color:rgba(0,229,160,0.2); }
+        /* Footer */
+        .footer-toolbar { width:100%; display:flex; justify-content:space-between; align-items:center; padding:6px 4px 0; flex-shrink:0; }
+        .toolbar-btn {
+            background:none; border:none; color:var(--text-dim); font-size:0.63rem;
+            letter-spacing:0.05em; text-transform:uppercase; cursor:pointer;
+            font-family:'Outfit',sans-serif; font-weight:600;
+            display:flex; flex-direction:column; align-items:center; gap:3px; padding:3px 10px; transition:color 0.2s;
+        }
+        .toolbar-btn svg { width:16px; height:16px; }
+        .toolbar-btn:active { color:var(--text-main); }
+        /* History panel */
+        .history-panel {
+            position:fixed; inset:0; z-index:100;
+            background:rgba(6,8,12,0.9); backdrop-filter:blur(16px);
+            display:flex; flex-direction:column; align-items:center;
+            padding-top:max(env(safe-area-inset-top),24px);
+            transform:translateY(100%); transition:transform 0.38s cubic-bezier(0.32,0.72,0,1);
+        }
+        .history-panel.open { transform:translateY(0); }
+        .history-panel-inner { width:100%; max-width:460px; height:100%; display:flex; flex-direction:column; padding:0 20px 20px; }
+        .history-top { display:flex; justify-content:space-between; align-items:center; padding:14px 0 18px; }
+        .history-title { font-size:1.1rem; font-weight:700; }
+        .close-btn { background:var(--surface); border:1px solid var(--border); color:var(--text-mid); width:33px; height:33px; border-radius:50%; cursor:pointer; font-size:0.88rem; display:flex; align-items:center; justify-content:center; }
+        .history-list { flex:1; overflow-y:auto; scrollbar-width:none; }
+        .history-list::-webkit-scrollbar { display:none; }
+        .history-item { background:var(--surface); border:1px solid var(--border); border-radius:13px; padding:12px 15px; margin-bottom:8px; }
+        .history-item-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .history-item-name { font-size:0.88rem; font-weight:600; }
+        .history-item-date { font-size:0.62rem; color:var(--text-dim); font-family:'Outfit',sans-serif; }
+        .history-item-detail { font-size:0.68rem; color:var(--text-mid); font-family:'Outfit',sans-serif; }
+        .history-empty { text-align:center; color:var(--text-dim); margin-top:60px; font-size:0.85rem; }
+        /* Preset modal */
+        .modal-overlay {
+            position:fixed; inset:0; z-index:200;
+            background:rgba(6,8,12,0.92); backdrop-filter:blur(18px);
+            display:flex; justify-content:center; align-items:flex-end;
+            padding:0 20px max(env(safe-area-inset-bottom),20px);
+            opacity:0; pointer-events:none; transition:opacity 0.22s;
+        }
+        .modal-overlay.open { opacity:1; pointer-events:all; }
+        .modal-card {
+            width:100%; max-width:460px; background:#0f1419;
+            border:1px solid var(--border); border-radius:26px; padding:22px;
+            transform:translateY(38px); transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
+        }
+        .modal-overlay.open .modal-card { transform:translateY(0); }
+        .modal-title { font-size:0.98rem; font-weight:700; margin-bottom:15px; }
+        .modal-input {
+            width:100%; background:var(--surface); border:1px solid var(--border); border-radius:11px;
+            padding:11px 14px; font-family:'Outfit',sans-serif; color:var(--text-main); font-size:0.88rem;
+            margin-bottom:12px; outline:none; user-select:text; -webkit-user-select:text;
+        }
+        .modal-input:focus { border-color:rgba(255,255,255,0.18); }
+        .modal-actions { display:flex; gap:9px; }
+        .modal-btn { flex:1; padding:13px; border-radius:14px; border:none; cursor:pointer; font-family:'Outfit',sans-serif; font-weight:700; font-size:0.88rem; }
+        .modal-btn-cancel { background:var(--surface); color:var(--text-mid); border:1px solid var(--border); }
+        .modal-btn-save { background:#fff; color:#000; }
+        /* Toast */
+        .toast {
+            position:fixed; bottom:max(env(safe-area-inset-bottom),18px); left:50%;
+            transform:translateX(-50%) translateY(68px);
+            background:rgba(255,255,255,0.09); border:1px solid var(--border); backdrop-filter:blur(12px);
+            border-radius:100px; padding:8px 18px; font-size:0.76rem; color:var(--text-main);
+            font-family:'Outfit',sans-serif; font-weight:600;
+            transition:transform 0.28s cubic-bezier(0.32,0.72,0,1); z-index:300; white-space:nowrap;
+        }
+        .toast.show { transform:translateX(-50%) translateY(0); }
+        .hidden { display:none !important; }
+        @keyframes done-glow { 0%,100%{opacity:0.12} 50%{opacity:0.4} }
+        .done-pulse { animation:done-glow 1s ease-in-out 3; }
+    </style>
+</head>
+<body>
+<div id="aura" class="aura-bg"></div>
+<div class="toast" id="toast"></div>
+
+<!-- History -->
+<div class="history-panel" id="historyPanel">
+    <div class="history-panel-inner">
+        <div class="history-top">
+            <div class="history-title">Verlauf</div>
+            <button class="close-btn" onclick="closeHistory()">✕</button>
+        </div>
+        <div class="history-list" id="historyList">
+            <div class="history-empty" id="historyEmpty">Noch keine Workouts.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Preset modal -->
+<div class="modal-overlay" id="presetModal">
+    <div class="modal-card">
+        <div class="modal-title">Preset speichern</div>
+        <input class="modal-input" id="presetNameInput" type="text" placeholder="Name eingeben…" maxlength="16">
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closePresetModal()">Abbrechen</button>
+            <button class="modal-btn modal-btn-save" onclick="saveCustomPreset()">Speichern</button>
+        </div>
+    </div>
+</div>
+
+<!-- MST stage duration edit modal -->
+<div class="modal-overlay" id="mstEditModal">
+    <div class="modal-card">
+        <div class="modal-title" id="mstEditTitle">Dauer anpassen</div>
+        <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+                <span class="picker-label">MIN</span>
+                <div class="wheel" id="mstEditMinWheel" style="max-width:52px"></div>
+            </div>
+            <span class="colon" style="font-size:1.4rem">:</span>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+                <span class="picker-label">SEK</span>
+                <div class="wheel" id="mstEditSecWheel" style="max-width:52px"></div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeMstEditModal()">Abbrechen</button>
+            <button class="modal-btn modal-btn-save" onclick="saveMstEdit()">Übernehmen</button>
+        </div>
+    </div>
+</div>
+
+<!-- App -->
+<div class="app-container">
+    <div style="flex-shrink:0;width:100%;display:flex;flex-direction:column;align-items:center">
+        <div class="mode-switcher">
+            <button id="modeIntervalBtn" class="mode-btn active" onclick="setMode('interval')">Interval</button>
+            <button id="modeStopwatchBtn" class="mode-btn" onclick="setMode('stopwatch')">Stoppuhr</button>
+            <button id="modeCountdownBtn" class="mode-btn" onclick="setMode('countdown')">Countdown</button>
+        </div>
+        <div id="presetRow" class="preset-row">
+            <button class="preset-btn" onclick="applyPreset('Tabata',5,0,20,10,8)">Tabata<span class="preset-sub">20s·10s·8R</span></button>
+            <button class="preset-btn" onclick="applyPreset('Kraft',5,3,0,90,5)">Kraft<span class="preset-sub">3min·90s·5R</span></button>
+            <button class="preset-btn" onclick="applyPreset('HIIT',5,0,40,20,6)">HIIT<span class="preset-sub">40s·20s·6R</span></button>
+            <button class="preset-btn mst-preset" onclick="activateMST()">MST<span class="preset-sub">Stufentest</span></button>
+            <button class="preset-btn custom-slot" onclick="openPresetModal()">+ Eigenes</button>
+        </div>
+        <!-- Ring — no shadow/filter on wrapper, only on SVG circle via drop-shadow filter -->
+        <div id="timerContainer" class="timer-viewport">
+            <svg class="progress-svg" viewBox="0 0 100 100">
+                <circle class="circle-outer-bg" cx="50" cy="50" r="48"></circle>
+                <circle id="outerProgress" class="circle-outer" cx="50" cy="50" r="48"
+                        stroke-dasharray="301.6" stroke-dashoffset="301.6" stroke="var(--accent-prep)"></circle>
+                <circle class="circle-bg" cx="50" cy="50" r="43.5"></circle>
+                <circle id="progressCircle" class="circle-progress" cx="50" cy="50" r="43.5"
+                        stroke-dasharray="273.3" stroke-dashoffset="0" stroke="var(--accent-prep)"></circle>
+            </svg>
+            <div class="timer-content">
+                <div id="statusLabel" class="status-label">Ready</div>
+                <div id="timeDisplay" class="main-time sz-normal">00:00</div>
+                <div id="roundDisplay" class="sub-info"></div>
+            </div>
+            <div class="paused-overlay"><div class="paused-icon">⏸</div></div>
+        </div>
+    </div>
+
+    <div class="dynamic-content">
+        <!-- INTERVAL -->
+        <div id="setupView">
+            <div class="setup-area">
+                <div class="picker-group">
+                    <span class="picker-label">PREP</span>
+                    <div class="wheel-container">
+                        <div class="wheel" id="prepWheel"></div>
+                        <span style="color:var(--text-dim);font-size:0.6rem;margin-left:2px;align-self:center;font-family:'Outfit',sans-serif">s</span>
+                    </div>
+                </div>
+                <div class="picker-group">
+                    <span class="picker-label">WORK</span>
+                    <div class="wheel-container">
+                        <div class="wheel" id="workMinWheel"></div><span class="colon">:</span><div class="wheel" id="workSecWheel"></div>
+                    </div>
+                </div>
+                <div class="picker-group">
+                    <span class="picker-label">REST</span>
+                    <div class="wheel-container">
+                        <div class="wheel" id="restWheel"></div>
+                        <span style="color:var(--text-dim);font-size:0.6rem;margin-left:2px;align-self:center;font-family:'Outfit',sans-serif">s</span>
+                    </div>
+                </div>
+                <div class="picker-group">
+                    <span class="picker-label">RUNDEN</span>
+                    <div class="wheel-container"><div class="wheel" id="roundsWheel"></div></div>
+                </div>
+            </div>
+            <div class="total-duration-bar" id="totalDurationBar">
+                <span class="lbl">Gesamt</span>
+                <span class="val" id="totalDurationVal">—</span>
+            </div>
+        </div>
+
+        <!-- STOPWATCH -->
+        <div id="splitList" class="split-container hidden">
+            <div class="split-header">
+                <span class="split-header-title">Splits</span>
+                <button class="copy-splits-btn" onclick="copySplits()">Kopieren</button>
+            </div>
+            <table><tbody id="splitBody"></tbody></table>
+        </div>
+
+        <!-- COUNTDOWN -->
+        <div id="countdownSetup" class="countdown-setup hidden">
+            <div class="countdown-presets">
+                <button class="countdown-preset" onclick="setCdPreset(1,0)">1 min</button>
+                <button class="countdown-preset" onclick="setCdPreset(2,0)">2 min</button>
+                <button class="countdown-preset" onclick="setCdPreset(5,0)">5 min</button>
+                <button class="countdown-preset" onclick="setCdPreset(10,0)">10 min</button>
+                <button class="countdown-preset" onclick="setCdPreset(25,0)">Pomodoro</button>
+            </div>
+            <div class="countdown-wheel-row">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+                    <span class="picker-label">MIN</span>
+                    <div class="wheel" id="cdMinWheel" style="max-width:52px"></div>
+                </div>
+                <span class="colon" style="font-size:1.4rem">:</span>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+                    <span class="picker-label">SEK</span>
+                    <div class="wheel" id="cdSecWheel" style="max-width:52px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MST -->
+        <div id="mstView" class="mst-setup hidden">
+            <div class="mst-label">Mehrstufentest (MST)</div>
+            <div id="mstStages" class="mst-stages"></div>
+            <div class="mst-total">
+                <span class="mst-total-lbl">Gesamtdauer</span>
+                <span class="mst-total-val">22:00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-area">
+        <button id="startBtn" class="btn btn-start" onclick="startWorkout()">Start</button>
+        <button id="splitBtn" class="btn btn-split hidden" onclick="addSplit()">Split</button>
+        <button id="pauseBtn" class="btn btn-pause hidden" onclick="togglePause()">Pause</button>
+        <button id="resetBtn" class="btn btn-reset hidden" onclick="resetWorkout()">Reset</button>
+    </div>
+
+    <div class="footer-toolbar">
+        <button class="toolbar-btn" onclick="openHistory()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+            Verlauf
+        </button>
+        <button class="toolbar-btn" onclick="showToast('Einstellungen: bald verfügbar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            Einstellungen
+        </button>
+        <button class="toolbar-btn" onclick="showToast('Teilen: bald verfügbar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Teilen
+        </button>
+    </div>
+</div>
+
+<script>
+// ── State ──
+let config={prep:5,workMin:0,workSec:20,rest:10,rounds:8};
+let cdConfig={min:5,sec:0};
+let mode='interval', isMSTMode=false;
+let animationFrame=null,startTime=0,pausedAt=0,wakeLock=null,isActionLocked=false;
+let duration=0,phase='prep',currentRound=1,isRunning=false,isPaused=false;
+let splits=[],lastBeepSec=null,totalWorkoutDuration=0,workoutElapsedAtStart=0;
+let mstStageIndex=0;
+let workoutHistory=[];
+try{workoutHistory=JSON.parse(localStorage.getItem('aura_h')||'[]');}catch(e){}
+let customPresets=[];
+try{customPresets=JSON.parse(localStorage.getItem('aura_cp')||'[]');}catch(e){}
+// Restore last interval config
+try{const s=JSON.parse(localStorage.getItem('aura_cfg'));if(s)config={...config,...s};}catch(e){}
+// Restore last countdown config
+try{const s=JSON.parse(localStorage.getItem('aura_cd'));if(s)cdConfig={...cdConfig,...s};}catch(e){}
+// Restore MST stage durations
+try{const d=JSON.parse(localStorage.getItem('aura_mst'));if(d)d.forEach((v,i)=>{if(MST_STAGES[i])MST_STAGES[i][1]=v;});}catch(e){}
+
+let MST_STAGES=[
+    ['Aufwärmen', 300,'var(--accent-prep)','Locker, niedrige Intensität'],
+    ['Grundlage', 300,'var(--accent-work)','60–70% HFmax'],
+    ['Schwelle',  240,'#facc15',           '75–85% HFmax'],
+    ['Intensiv',  180,'#f97316',           '85–92% HFmax'],
+    ['Max',       120,'var(--accent-rest)','92–100% HFmax'],
+    ['Auslaufen', 180,'var(--accent-prep)','Regeneration'],
+];
+function getMSTTotal(){return MST_STAGES.reduce((a,x)=>a+x[1],0);}
+
+const circle=document.getElementById('progressCircle');
+const outerCircle=document.getElementById('outerProgress');
+const aura=document.getElementById('aura');
+const timeDisplay=document.getElementById('timeDisplay');
+const CIRC=273.3, OUTER_CIRC=301.6;
+const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+
+async function requestWakeLock(){try{if('wakeLock' in navigator)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
+function releaseWakeLock(){if(wakeLock){wakeLock.release();wakeLock=null;}}
+function handleAction(cb){if(isActionLocked)return;isActionLocked=true;cb();setTimeout(()=>isActionLocked=false,300);}
+
+let toastTimer;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2500);}
+
+// Update start button glow to match current accent
+function syncStartBtn(rawColor){
+    const btn=document.getElementById('startBtn');
+    btn.style.setProperty('--btn-glow', rawColor);
+    // force repaint by toggling a dummy class trick
+    btn.style.background=`linear-gradient(140deg, ${rawColor} 0%, color-mix(in srgb, ${rawColor} 40%, #000) 100%)`;
+    btn.style.boxShadow=`0 0 26px -5px ${rawColor}, inset 0 1px 0 rgba(255,255,255,0.2)`;
+}
+
+// ── Wheels ──
+function createWheel(id,min,max,sel){
+    const w=document.getElementById(id);
+    w.innerHTML='<div style="height:40px"></div>';
+    for(let i=min;i<=max;i++){const d=document.createElement('div');d.textContent=i<10?'0'+i:''+i;d.dataset.value=i;w.appendChild(d);}
+    w.innerHTML+='<div style="height:40px"></div>';
+    w.onscroll=()=>{
+        const idx=Math.round(w.scrollTop/40);
+        w.querySelectorAll('div[data-value]').forEach((el,i)=>{
+            el.classList.toggle('selected',i===idx);
+            if(i===idx){
+                const k=id.replace('Wheel','');
+                if(k==='workMin'){config.workMin=+el.dataset.value;saveCfg();}
+                else if(k==='workSec'){config.workSec=+el.dataset.value;saveCfg();}
+                else if(k==='prep'){config.prep=+el.dataset.value;saveCfg();}
+                else if(k==='rest'){config.rest=+el.dataset.value;saveCfg();}
+                else if(k==='rounds'){config.rounds=+el.dataset.value;saveCfg();}
+                else if(k==='cdMin'){cdConfig.min=+el.dataset.value;saveCdCfg();}
+                else if(k==='cdSec'){cdConfig.sec=+el.dataset.value;saveCdCfg();}
+                else if(k==='mstEditMin')mstEditMin=+el.dataset.value;
+                else if(k==='mstEditSec')mstEditSec=+el.dataset.value;
+                updateTotalDuration();
+            }
+        });
+    };
+    setTimeout(()=>{w.scrollTop=(sel-min)*40;},80);
+}
+function setWheelValue(id,val,min){
+    const w=document.getElementById(id);if(!w)return;
+    w.scrollTop=(val-min)*40;
+    w.querySelectorAll('div[data-value]').forEach((el,i)=>el.classList.toggle('selected',i===val-min));
+}
+createWheel('prepWheel',0,60,config.prep);
+createWheel('workMinWheel',0,59,config.workMin);
+createWheel('workSecWheel',0,59,config.workSec);
+createWheel('restWheel',0,120,config.rest);
+createWheel('roundsWheel',1,99,config.rounds);
+createWheel('cdMinWheel',0,99,cdConfig.min);
+createWheel('cdSecWheel',0,59,cdConfig.sec);
+
+function updateTotalDuration(){
+    if(mode!=='interval'||isMSTMode)return;
+    const ws=config.workMin*60+config.workSec;
+    const tot=config.prep+(ws+config.rest)*config.rounds-config.rest;
+    const m=Math.floor(tot/60),s=tot%60;
+    document.getElementById('totalDurationVal').textContent=(m>0?m+'min ':'')+( s>0||m===0?s+'s':'');
+}
+updateTotalDuration();
+
+// ── setMode ──
+function setMode(m, keepMST){
+    if(animationFrame)cancelAnimationFrame(animationFrame);
+    isRunning=false;isPaused=false;mode=m;
+    if(!keepMST)isMSTMode=false;
+
+    ['Interval','Stopwatch','Countdown'].forEach(x=>{
+        document.getElementById('mode'+x+'Btn').classList.toggle('active',m===x.toLowerCase()||(x==='Stopwatch'&&m==='stopwatch')||(x==='Countdown'&&m==='countdown')||(x==='Interval'&&m==='interval'));
+    });
+    document.getElementById('modeIntervalBtn').classList.toggle('active',m==='interval');
+    document.getElementById('modeStopwatchBtn').classList.toggle('active',m==='stopwatch');
+    document.getElementById('modeCountdownBtn').classList.toggle('active',m==='countdown');
+
+    document.getElementById('setupView').classList.toggle('hidden',m!=='interval'||isMSTMode);
+    document.getElementById('splitList').classList.add('hidden');
+    document.getElementById('countdownSetup').classList.toggle('hidden',m!=='countdown');
+    document.getElementById('mstView').classList.toggle('hidden',!isMSTMode);
+    document.getElementById('presetRow').classList.toggle('hidden',m!=='interval');
+    const tdb=document.getElementById('totalDurationBar');
+    if(tdb)tdb.classList.toggle('hidden',m!=='interval'||isMSTMode);
+
+    document.getElementById('startBtn').classList.remove('hidden');
+    document.getElementById('pauseBtn').classList.add('hidden');
+    document.getElementById('resetBtn').classList.add('hidden');
+    document.getElementById('splitBtn').classList.add('hidden');
+    const pb=document.getElementById('pauseBtn');
+    pb.textContent='Pause';pb.classList.remove('paused-state');
+    document.getElementById('timerContainer').classList.remove('paused');
+
+    const accentMap={interval:'var(--accent-prep)',stopwatch:'var(--accent-stopwatch)',countdown:'var(--accent-countdown)'};
+    const rawMap={interval:'#4d9fff',stopwatch:'#fbbf24',countdown:'#a78bfa'};
+    const col=isMSTMode?'var(--accent-stopwatch)':accentMap[m];
+    const raw=isMSTMode?'#fbbf24':rawMap[m];
+    aura.style.setProperty('--glow-color',col);
+    circle.style.stroke=col; outerCircle.style.stroke=col;
+    circle.style.strokeDashoffset=0; outerCircle.style.strokeDashoffset=OUTER_CIRC;
+    syncStartBtn(raw);
+
+    document.getElementById('statusLabel').textContent=isMSTMode?'MST Ready':{interval:'Ready',stopwatch:'Stoppuhr',countdown:'Countdown'}[m];
+    document.getElementById('roundDisplay').textContent='';
+
+    const td=document.getElementById('timeDisplay');
+    td.className='main-time sz-normal';
+    if(m==='stopwatch'){td.className='main-time sz-small';td.textContent='00:00.0';}
+    else if(m==='countdown'){const tot=cdConfig.min*60+cdConfig.sec;td.textContent=`${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;}
+    else td.textContent=isMSTMode?'00:00':'00:00';
+}
+
+// ── MST ──
+function activateMST(){
+    isMSTMode=true; mode='interval'; mstStageIndex=0;
+    document.getElementById('modeIntervalBtn').classList.add('active');
+    document.getElementById('modeStopwatchBtn').classList.remove('active');
+    document.getElementById('modeCountdownBtn').classList.remove('active');
+    document.getElementById('setupView').classList.add('hidden');
+    document.getElementById('totalDurationBar').classList.add('hidden');
+    document.getElementById('mstView').classList.remove('hidden');
+    document.getElementById('presetRow').classList.remove('hidden');
+    document.getElementById('splitList').classList.add('hidden');
+    document.getElementById('startBtn').classList.remove('hidden');
+    document.getElementById('pauseBtn').classList.add('hidden');
+    document.getElementById('resetBtn').classList.add('hidden');
+    document.getElementById('timerContainer').classList.remove('paused');
+    const col='#fbbf24';
+    aura.style.setProperty('--glow-color','var(--accent-stopwatch)');
+    circle.style.stroke='var(--accent-stopwatch)';outerCircle.style.stroke='var(--accent-stopwatch)';
+    circle.style.strokeDashoffset=0;outerCircle.style.strokeDashoffset=OUTER_CIRC;
+    syncStartBtn(col);
+    document.getElementById('statusLabel').textContent='MST Ready';
+    document.getElementById('timeDisplay').textContent='00:00';
+    document.getElementById('timeDisplay').className='main-time sz-normal';
+    document.getElementById('roundDisplay').textContent='';
+}
+
+function runMSTStage(idx){
+    if(!isRunning||idx>=MST_STAGES.length){if(isRunning)finish();return;}
+    mstStageIndex=idx;
+    const [name,dur,col]=MST_STAGES[idx];
+    phase='work';duration=dur;startTime=performance.now();lastBeepSec=null;
+    circle.style.stroke=col;outerCircle.style.stroke=col;
+    aura.style.setProperty('--glow-color',col);
+    document.getElementById('statusLabel').textContent=name;
+    document.getElementById('roundDisplay').textContent=`Stufe ${idx+1} / ${MST_STAGES.length}`;
+    playTone(idx===0?440:660,0.2);
+    const mstHaptic=[[30],[60,30,60],[70,30,70],[80,30,80],[100,40,100],[30]];
+    if(navigator.vibrate)navigator.vibrate(mstHaptic[idx]||[60]);
+    animationFrame=requestAnimationFrame(updateMST);
+}
+function updateMST(ts){
+    if(!isRunning||isPaused)return;
+    const elapsed=(ts-startTime)/1000;
+    const remaining=Math.max(0,duration-elapsed);
+    circle.style.strokeDashoffset=CIRC*(1-remaining/duration);
+    const mstEl=MST_STAGES.slice(0,mstStageIndex).reduce((a,x)=>a+x[1],0)+(duration-remaining);
+    outerCircle.style.strokeDashoffset=OUTER_CIRC*(1-Math.min(1,mstEl/getMSTTotal()));
+    const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
+    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
+    if(remaining<=3.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playTone(440,0.07);lastBeepSec=Math.ceil(remaining);}
+    if(remaining>0)animationFrame=requestAnimationFrame(updateMST);
+    else runMSTStage(mstStageIndex+1);
+}
+
+// ── Presets ──
+function applyPreset(name,prep,wm,ws,rest,rounds){
+    if(isRunning){resetWorkout();setTimeout(()=>applyPreset(name,prep,wm,ws,rest,rounds),90);return;}
+    isMSTMode=false; config={prep,workMin:wm,workSec:ws,rest,rounds};
+    setWheelValue('prepWheel',prep,0);setWheelValue('workMinWheel',wm,0);setWheelValue('workSecWheel',ws,0);
+    setWheelValue('restWheel',rest,0);setWheelValue('roundsWheel',rounds,1);
+    document.getElementById('mstView').classList.add('hidden');
+    document.getElementById('setupView').classList.remove('hidden');
+    document.getElementById('totalDurationBar').classList.remove('hidden');
+    aura.style.setProperty('--glow-color','var(--accent-prep)');
+    circle.style.stroke='var(--accent-prep)';outerCircle.style.stroke='var(--accent-prep)';
+    syncStartBtn('#4d9fff');
+    document.getElementById('statusLabel').textContent='Ready';
+    timeDisplay.textContent='00:00';timeDisplay.className='main-time sz-normal';
+    document.getElementById('roundDisplay').textContent='';
+    updateTotalDuration();showToast(name+' geladen');
+}
+
+// ── Persist config ──
+function saveCfg(){try{localStorage.setItem('aura_cfg',JSON.stringify(config));}catch(e){}}
+function saveCdCfg(){try{localStorage.setItem('aura_cd',JSON.stringify(cdConfig));}catch(e){}}
+
+// ── Custom Presets ──
+function renderCustomPresets(){
+    const row=document.getElementById('presetRow');
+    row.querySelectorAll('.user-preset').forEach(b=>b.remove());
+    const addBtn=row.querySelector('.custom-slot');
+    customPresets.forEach((p,i)=>{
+        const btn=document.createElement('button');
+        btn.className='preset-btn user-preset';
+        const ws=p.workMin*60+p.workSec;
+        btn.innerHTML=`${p.name}<span class="preset-sub">${ws}s·${p.rest}s·${p.rounds}R</span><button class="preset-del" onclick="deleteCustomPreset(event,${i})">×</button>`;
+        btn.onclick=(e)=>{if(!e.target.classList.contains('preset-del'))applyPreset(p.name,p.prep,p.workMin,p.workSec,p.rest,p.rounds);};
+        row.insertBefore(btn,addBtn);
+    });
+}
+function deleteCustomPreset(e,idx){
+    e.stopPropagation();
+    customPresets.splice(idx,1);
+    try{localStorage.setItem('aura_cp',JSON.stringify(customPresets));}catch(e){}
+    renderCustomPresets();
+    showToast('Preset gelöscht');
+}
+function openPresetModal(){document.getElementById('presetModal').classList.add('open');setTimeout(()=>document.getElementById('presetNameInput').focus(),300);}
+function closePresetModal(){document.getElementById('presetModal').classList.remove('open');document.getElementById('presetNameInput').value='';}
+function saveCustomPreset(){
+    const name=document.getElementById('presetNameInput').value.trim()||'Custom';
+    customPresets.push({...config,name});
+    try{localStorage.setItem('aura_cp',JSON.stringify(customPresets));}catch(e){}
+    renderCustomPresets();
+    showToast('"'+name+'" gespeichert');
+    closePresetModal();
+}
+function setCdPreset(m,s){cdConfig={min:m,sec:s};setWheelValue('cdMinWheel',m,0);setWheelValue('cdSecWheel',s,0);saveCdCfg();}
+
+// ── MST Edit ──
+let mstEditIdx=-1,mstEditMin=0,mstEditSec=0;
+function renderMSTView(){
+    const c=document.getElementById('mstStages');c.innerHTML='';
+    MST_STAGES.forEach(([name,dur,col,detail],i)=>{
+        const m=Math.floor(dur/60),s=dur%60;
+        const durStr=`${m}:${String(s).padStart(2,'0')}`;
+        const div=document.createElement('div');div.className='mst-stage';
+        if(i===MST_STAGES.length-1)div.style.borderBottom='none';
+        const dotStyle=i===MST_STAGES.length-1?`background:${col};opacity:0.38`:`background:${col}`;
+        div.innerHTML=`<div class="mst-dot" style="${dotStyle}"></div><div class="mst-stage-info"><div class="mst-stage-name">${name}</div><div class="mst-stage-detail">${detail}</div></div><div class="mst-stage-dur" onclick="openMstEditModal(${i})">${durStr}</div>`;
+        c.appendChild(div);
+    });
+    const total=getMSTTotal(),tm=Math.floor(total/60),ts=total%60;
+    document.querySelector('.mst-total-val').textContent=`${tm}:${String(ts).padStart(2,'0')}`;
+}
+function openMstEditModal(idx){
+    mstEditIdx=idx;
+    const dur=MST_STAGES[idx][1];
+    mstEditMin=Math.floor(dur/60);mstEditSec=dur%60;
+    document.getElementById('mstEditTitle').textContent=MST_STAGES[idx][0]+' · Dauer';
+    createWheel('mstEditMinWheel',0,59,mstEditMin);
+    createWheel('mstEditSecWheel',0,59,mstEditSec);
+    document.getElementById('mstEditModal').classList.add('open');
+}
+function closeMstEditModal(){document.getElementById('mstEditModal').classList.remove('open');}
+function saveMstEdit(){
+    const dur=mstEditMin*60+mstEditSec;
+    if(dur<10){showToast('Mindestdauer: 10s');return;}
+    MST_STAGES[mstEditIdx][1]=dur;
+    try{localStorage.setItem('aura_mst',JSON.stringify(MST_STAGES.map(s=>s[1])));}catch(e){}
+    renderMSTView();closeMstEditModal();showToast('Gespeichert');
+}
+
+// ── Start ──
+function startWorkout(){
+    handleAction(async()=>{
+        if(audioCtx.state==='suspended')audioCtx.resume();
+        await requestWakeLock();
+        isRunning=true;
+        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('pauseBtn').classList.remove('hidden');
+        document.getElementById('resetBtn').classList.remove('hidden');
+        document.getElementById('setupView').classList.add('hidden');
+        document.getElementById('presetRow').classList.add('hidden');
+        document.getElementById('totalDurationBar')?.classList.add('hidden');
+        document.getElementById('countdownSetup').classList.add('hidden');
+        document.getElementById('mstView').classList.add('hidden');
+
+        if(isMSTMode){
+            totalWorkoutDuration=getMSTTotal();workoutElapsedAtStart=0;
+            runMSTStage(0);
+        } else if(mode==='interval'){
+            const ws=config.workMin*60+config.workSec;
+            totalWorkoutDuration=config.prep+(ws+config.rest)*config.rounds-config.rest;
+            workoutElapsedAtStart=0;currentRound=1;
+            runPhase('prep',config.prep||0.1);
+        } else if(mode==='stopwatch'){
+            splits=[];document.getElementById('splitBody').innerHTML='';
+            document.getElementById('splitList').classList.remove('hidden');
+            document.getElementById('splitBtn').classList.remove('hidden');
+            startTime=performance.now();animationFrame=requestAnimationFrame(updateStopwatch);
+        } else if(mode==='countdown'){
+            duration=cdConfig.min*60+cdConfig.sec;if(!duration)return;
+            lastBeepSec=null;startTime=performance.now();animationFrame=requestAnimationFrame(updateCountdown);
+        }
+    });
+}
+
+// ── Pause ──
+function togglePause(){
+    handleAction(()=>{
+        const btn=document.getElementById('pauseBtn');
+        if(!isPaused){
+            isPaused=true;pausedAt=performance.now();
+            if(animationFrame)cancelAnimationFrame(animationFrame);
+            btn.textContent='Weiter';btn.classList.add('paused-state');
+            document.getElementById('timerContainer').classList.add('paused');
+            releaseWakeLock();
+        } else {
+            isPaused=false;requestWakeLock();
+            startTime+=(performance.now()-pausedAt);
+            const fn=isMSTMode?updateMST:mode==='interval'?updateInterval:mode==='countdown'?updateCountdown:updateStopwatch;
+            animationFrame=requestAnimationFrame(fn);
+            btn.textContent='Pause';btn.classList.remove('paused-state');
+            document.getElementById('timerContainer').classList.remove('paused');
+        }
+    });
+}
+
+// ── Reset ──
+function resetWorkout(){
+    handleAction(()=>{
+        isRunning=false;
+        if(animationFrame)cancelAnimationFrame(animationFrame);
+        releaseWakeLock();
+        if(isMSTMode)activateMST();
+        else setMode(mode);
+    });
+}
+
+// ── Interval ──
+function setAccentColor(col,raw){
+    circle.style.stroke=col;outerCircle.style.stroke=col;
+    aura.style.setProperty('--glow-color',col);
+    if(raw)syncStartBtn(raw);
+}
+function runPhase(p,d){
+    if(!isRunning)return;
+    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;
+    const cols={prep:'var(--accent-prep)',work:'var(--accent-work)',rest:'var(--accent-rest)'};
+    const raws={prep:'#4d9fff',work:'#00e5a0',rest:'#ff3d6b'};
+    document.getElementById('statusLabel').textContent=p==='prep'?'Get Ready':p.charAt(0).toUpperCase()+p.slice(1);
+    if(p!=='prep')document.getElementById('roundDisplay').textContent=`Runde ${currentRound} / ${config.rounds}`;
+    setAccentColor(cols[p],raws[p]);
+    playTone(p==='work'?880:440,0.2);
+    const hapticMap={prep:[30],work:[80,30,80],rest:[50]};
+    if(navigator.vibrate)navigator.vibrate(hapticMap[p]||[40]);
+    animationFrame=requestAnimationFrame(updateInterval);
+}
+function updateInterval(ts){
+    if(!isRunning||isPaused)return;
+    const elapsed=(ts-startTime)/1000,remaining=Math.max(0,duration-elapsed);
+    circle.style.strokeDashoffset=CIRC*(1-remaining/duration);
+    const totEl=workoutElapsedAtStart+(duration-remaining);
+    outerCircle.style.strokeDashoffset=OUTER_CIRC*(1-Math.min(1,totEl/totalWorkoutDuration));
+    const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
+    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
+    if(remaining<=3.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playTone(440,0.07);lastBeepSec=Math.ceil(remaining);}
+    if(remaining>0){animationFrame=requestAnimationFrame(updateInterval);return;}
+    workoutElapsedAtStart+=duration;
+    if(phase==='prep')runPhase('work',config.workMin*60+config.workSec);
+    else if(phase==='work'&&currentRound<config.rounds)runPhase('rest',config.rest);
+    else if(phase==='rest'){currentRound++;runPhase('work',config.workMin*60+config.workSec);}
+    else finish();
+}
+
+// ── Stopwatch ──
+function updateStopwatch(ts){
+    if(!isRunning||isPaused)return;
+    const elapsed=(ts-startTime)/1000;
+    const m=Math.floor(elapsed/60),s=Math.floor(elapsed%60),ms=Math.floor((elapsed%1)*10);
+    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${ms}`;
+    circle.style.strokeDashoffset=CIRC*((elapsed%60)/60);
+    animationFrame=requestAnimationFrame(updateStopwatch);
+}
+function addSplit(){
+    const now=(performance.now()-startTime)/1000;
+    const delta=splits.length>0?now-splits[splits.length-1].total:now;
+    splits.push({total:now,delta});
+    const deltas=splits.map(s=>s.delta),best=Math.min(...deltas),worst=Math.max(...deltas);
+    const tbody=document.getElementById('splitBody');tbody.innerHTML='';
+    splits.slice().reverse().forEach((sp,ri)=>{
+        const i=splits.length-ri,tr=document.createElement('tr');
+        if(splits.length>2){if(sp.delta===best)tr.className='best-split';else if(sp.delta===worst)tr.className='worst-split';}
+        tr.innerHTML=`<td>#${i}</td><td>+${sp.delta.toFixed(2)}s</td><td>${fmtTime(sp.total)}</td>`;
+        tbody.appendChild(tr);
+    });
+    playTone(660,0.07);if(navigator.vibrate)navigator.vibrate(25);
+}
+function fmtTime(sec){const m=Math.floor(sec/60),s=Math.floor(sec%60),ms=Math.floor((sec%1)*10);return`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${ms}`;}
+function copySplits(){
+    if(!splits.length)return;
+    const txt=splits.map((s,i)=>`#${i+1}\t+${s.delta.toFixed(2)}s\t${fmtTime(s.total)}`).join('\n');
+    navigator.clipboard?.writeText(txt).then(()=>showToast('Splits kopiert!')).catch(()=>showToast('Kopieren fehlgeschlagen'));
+}
+
+// ── Countdown ──
+function updateCountdown(ts){
+    if(!isRunning||isPaused)return;
+    const elapsed=(ts-startTime)/1000,remaining=Math.max(0,duration-elapsed);
+    circle.style.strokeDashoffset=CIRC*(elapsed/duration);
+    const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
+    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
+    if(remaining<=3.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playTone(440,0.07);lastBeepSec=Math.ceil(remaining);}
+    if(remaining>0)animationFrame=requestAnimationFrame(updateCountdown);
+    else finish();
+}
+
+// ── Finish ──
+function finish(){
+    document.getElementById('statusLabel').textContent='Done ✓';
+    aura.style.setProperty('--glow-color','rgba(255,255,255,0.6)');
+    aura.classList.add('done-pulse');
+    playTone(880,0.12);setTimeout(()=>playTone(1100,0.28),230);
+    if(navigator.vibrate)navigator.vibrate([100,60,100,60,240]);
+    const entry={
+        mode:isMSTMode?'MST':mode,
+        date:new Date().toLocaleDateString('de',{day:'2-digit',month:'2-digit',year:'2-digit'}),
+        time:new Date().toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'}),
+        detail:isMSTMode?`Mehrstufentest · ${Math.round(getMSTTotal()/60)}min`:
+            mode==='interval'?`${config.rounds}R · ${config.workMin}:${String(config.workSec).padStart(2,'0')} / ${config.rest}s`:
+            mode==='countdown'?`${cdConfig.min}:${String(cdConfig.sec).padStart(2,'0')}`:
+            `${splits.length} Splits`
+    };
+    workoutHistory.unshift(entry);
+    if(workoutHistory.length>20)workoutHistory.pop();
+    try{localStorage.setItem('aura_h',JSON.stringify(workoutHistory));}catch(e){}
+    setTimeout(()=>{aura.classList.remove('done-pulse');resetWorkout();},3500);
+}
+
+// ── Audio ──
+function playTone(f,d){
+    try{
+        const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+        o.frequency.value=f;o.type='sine';
+        g.gain.setValueAtTime(0.25,audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+d);
+        o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+d);
+    }catch(e){}
+}
+
+// ── History ──
+function openHistory(){renderHistory();document.getElementById('historyPanel').classList.add('open');}
+function closeHistory(){document.getElementById('historyPanel').classList.remove('open');}
+function renderHistory(){
+    const list=document.getElementById('historyList'),empty=document.getElementById('historyEmpty');
+    list.querySelectorAll('.history-item').forEach(e=>e.remove());
+    if(!workoutHistory.length){empty.style.display='block';return;}
+    empty.style.display='none';
+    workoutHistory.forEach(h=>{
+        const div=document.createElement('div');div.className='history-item';
+        const label={interval:'Interval',stopwatch:'Stoppuhr',countdown:'Countdown',MST:'MST'}[h.mode]||h.mode;
+        div.innerHTML=`<div class="history-item-top"><span class="history-item-name">${label}</span><span class="history-item-date">${h.date} ${h.time}</span></div><div class="history-item-detail">${h.detail}</div>`;
+        list.appendChild(div);
+    });
+}
+
+// init
+syncStartBtn('#4d9fff');
+renderCustomPresets();
+renderMSTView();
+</script>
+</body>
+</html>
