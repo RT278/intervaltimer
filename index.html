@@ -129,12 +129,13 @@
             border-radius:22px; padding:12px 6px; justify-content:space-around; border:1px solid var(--border);
         }
         .picker-group { flex:1; display:flex; flex-direction:column; align-items:center; min-width:0; }
-        .picker-label { font-family:'Outfit',sans-serif; font-size:0.5rem; color:var(--text-dim); font-weight:700; margin-bottom:6px; letter-spacing:0.18em; }
+        .picker-label { font-family:'Outfit',sans-serif; font-size:0.5rem; color:var(--text-dim); font-weight:700; margin-bottom:4px; letter-spacing:0.18em; }
         .wheel-container { display:flex; justify-content:center; align-items:center; width:100%; }
         .wheel {
             height:96px; overflow-y:scroll; scroll-snap-type:y mandatory;
             scrollbar-width:none; width:100%; max-width:42px;
             mask-image:linear-gradient(to bottom,transparent,36%,black 36%,black 64%,transparent 64%);
+            overscroll-behavior:none;
         }
         .wheel::-webkit-scrollbar { display:none; }
         .wheel div {
@@ -321,15 +322,14 @@
 <div class="modal-overlay" id="mstEditModal">
     <div class="modal-card">
         <div class="modal-title" id="mstEditTitle">Dauer anpassen</div>
-        <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px">
-            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
-                <span class="picker-label">MIN</span>
-                <div class="wheel" id="mstEditMinWheel" style="max-width:52px"></div>
-            </div>
-            <span class="colon" style="font-size:1.4rem">:</span>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
-                <span class="picker-label">SEK</span>
-                <div class="wheel" id="mstEditSecWheel" style="max-width:52px"></div>
+        <div style="display:flex;justify-content:center;margin-bottom:16px">
+            <div class="picker-group">
+                <span class="picker-label">MIN · SEK</span>
+                <div class="wheel-container">
+                    <div class="wheel" id="mstEditMinWheel" style="max-width:52px"></div>
+                    <span class="colon">:</span>
+                    <div class="wheel" id="mstEditSecWheel" style="max-width:52px"></div>
+                </div>
             </div>
         </div>
         <div class="modal-actions">
@@ -427,14 +427,13 @@
                 <button class="countdown-preset" onclick="setCdPreset(25,0)">Pomodoro</button>
             </div>
             <div class="countdown-wheel-row">
-                <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
-                    <span class="picker-label">MIN</span>
-                    <div class="wheel" id="cdMinWheel" style="max-width:52px"></div>
-                </div>
-                <span class="colon" style="font-size:1.4rem">:</span>
-                <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
-                    <span class="picker-label">SEK</span>
-                    <div class="wheel" id="cdSecWheel" style="max-width:52px"></div>
+                <div class="picker-group">
+                    <span class="picker-label">MIN · SEK</span>
+                    <div class="wheel-container">
+                        <div class="wheel" id="cdMinWheel" style="max-width:52px"></div>
+                        <span class="colon">:</span>
+                        <div class="wheel" id="cdSecWheel" style="max-width:52px"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -529,9 +528,10 @@ function syncStartBtn(rawColor){
 // ── Wheels ──
 function createWheel(id,min,max,sel){
     const w=document.getElementById(id);
-    w.innerHTML='<div style="height:40px"></div>';
-    for(let i=min;i<=max;i++){const d=document.createElement('div');d.textContent=i<10?'0'+i:''+i;d.dataset.value=i;w.appendChild(d);}
-    w.innerHTML+='<div style="height:40px"></div>';
+    const mkSpacer=()=>{const s=document.createElement('div');s.style.cssText='height:32px;flex-shrink:0';return s;};
+    w.innerHTML='';w.appendChild(mkSpacer());
+    for(let i=min;i<=max;i++){const d=document.createElement('div');d.textContent=i<10?'0'+i:''+i;d.dataset.value=i;if(i===sel)d.classList.add('selected');w.appendChild(d);}
+    w.appendChild(mkSpacer());
     w.onscroll=()=>{
         const idx=Math.round(w.scrollTop/32);
         w.querySelectorAll('div[data-value]').forEach((el,i)=>{
