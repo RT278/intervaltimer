@@ -681,11 +681,13 @@ function updateMST(ts){
 function applyPreset(name,prep,wm,ws,rest,rounds){
     if(isRunning){resetWorkout();setTimeout(()=>applyPreset(name,prep,wm,ws,rest,rounds),90);return;}
     isMSTMode=false; config={prep,workMin:wm,workSec:ws,rest,rounds};
-    setWheelValue('prepWheel',prep,0);setWheelValue('workMinWheel',wm,0);setWheelValue('workSecWheel',ws,0);
-    setWheelValue('restWheel',rest,0);setWheelValue('roundsWheel',rounds,1);
     document.getElementById('mstView').classList.add('hidden');
     document.getElementById('setupView').classList.remove('hidden');
     document.getElementById('totalDurationBar').classList.remove('hidden');
+    requestAnimationFrame(()=>{
+        setWheelValue('prepWheel',prep,0);setWheelValue('workMinWheel',wm,0);setWheelValue('workSecWheel',ws,0);
+        setWheelValue('restWheel',rest,0);setWheelValue('roundsWheel',rounds,1);
+    });
     aura.style.setProperty('--glow-color','var(--accent-prep)');
     circle.style.stroke='var(--accent-prep)';outerCircle.style.stroke='var(--accent-prep)';
     syncStartBtn('#4d9fff');
