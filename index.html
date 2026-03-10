@@ -10,6 +10,7 @@
     <title>Aura Timer Pro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --bg: #06080c;
@@ -284,6 +285,11 @@
             transition:transform 0.28s cubic-bezier(0.32,0.72,0,1); z-index:300; white-space:nowrap;
         }
         .toast.show { transform:translateX(-50%) translateY(0); }
+        #qrBox { display:flex; justify-content:center; margin:18px 0 12px;
+            background:#f0f4f8; border-radius:14px; padding:14px; }
+        #qrBox canvas, #qrBox img { border-radius:6px; }
+        #shareUrlText { font-size:0.65rem; color:var(--text-mid); margin-bottom:16px;
+            word-break:break-all; line-height:1.5; }
         .hidden { display:none !important; }
         @keyframes done-glow { 0%,100%{opacity:0.12} 50%{opacity:0.4} }
         .done-pulse { animation:done-glow 1s ease-in-out 3; }
@@ -335,6 +341,19 @@
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" onclick="closeMstEditModal()">Abbrechen</button>
             <button class="modal-btn modal-btn-save" onclick="saveMstEdit()">Übernehmen</button>
+        </div>
+    </div>
+</div>
+
+<!-- Share modal -->
+<div class="modal-overlay" id="shareModal">
+    <div class="modal-card" style="text-align:center">
+        <div class="modal-title">App teilen</div>
+        <div id="qrBox"></div>
+        <div id="shareUrlText"></div>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeShareModal()">Schließen</button>
+            <button class="modal-btn modal-btn-save" id="copyUrlBtn" onclick="copyShareUrl()">URL kopieren</button>
         </div>
     </div>
 </div>
@@ -465,7 +484,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
             Einstellungen
         </button>
-        <button class="toolbar-btn" onclick="showToast('Teilen: bald verfügbar')">
+        <button class="toolbar-btn" onclick="openShareModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             Teilen
         </button>
@@ -591,6 +610,7 @@ function setMode(m, keepMST){
     document.getElementById('setupView').classList.toggle('hidden',m!=='interval'||isMSTMode);
     document.getElementById('splitList').classList.add('hidden');
     document.getElementById('countdownSetup').classList.toggle('hidden',m!=='countdown');
+    if(m==='countdown')requestAnimationFrame(()=>{setWheelValue('cdMinWheel',cdConfig.min,0);setWheelValue('cdSecWheel',cdConfig.sec,0);});
     document.getElementById('mstView').classList.toggle('hidden',!isMSTMode);
     document.getElementById('presetRow').classList.toggle('hidden',m!=='interval');
     const tdb=document.getElementById('totalDurationBar');
@@ -959,6 +979,25 @@ function renderHistory(){
         const label={interval:'Interval',stopwatch:'Stoppuhr',countdown:'Countdown',MST:'MST'}[h.mode]||h.mode;
         div.innerHTML=`<div class="history-item-top"><span class="history-item-name">${label}</span><span class="history-item-date">${h.date} ${h.time}</span></div><div class="history-item-detail">${h.detail}</div>`;
         list.appendChild(div);
+    });
+}
+
+// ── Share ──
+let _qrInstance=null;
+function openShareModal(){
+    const url=window.location.href.replace(/[?#].*$/,'');
+    document.getElementById('shareUrlText').textContent=url;
+    const box=document.getElementById('qrBox');
+    box.innerHTML='';
+    _qrInstance=new QRCode(box,{text:url,width:200,height:200,colorDark:'#1a1f2b',colorLight:'#f0f4f8',correctLevel:QRCode.CorrectLevel.M});
+    document.getElementById('shareModal').classList.add('open');
+}
+function closeShareModal(){document.getElementById('shareModal').classList.remove('open');}
+function copyShareUrl(){
+    const url=document.getElementById('shareUrlText').textContent;
+    navigator.clipboard?.writeText(url).then(()=>{
+        const btn=document.getElementById('copyUrlBtn');
+        btn.textContent='Kopiert ✓';setTimeout(()=>btn.textContent='URL kopieren',2000);
     });
 }
 
