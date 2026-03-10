@@ -126,24 +126,24 @@
         /* Wheels */
         .setup-area {
             display:flex; width:100%; background:var(--surface);
-            border-radius:22px; padding:16px 6px; justify-content:space-around; border:1px solid var(--border);
+            border-radius:22px; padding:12px 6px; justify-content:space-around; border:1px solid var(--border);
         }
         .picker-group { flex:1; display:flex; flex-direction:column; align-items:center; min-width:0; }
-        .picker-label { font-family:'Outfit',sans-serif; font-size:0.5rem; color:var(--text-dim); font-weight:700; margin-bottom:8px; letter-spacing:0.18em; }
+        .picker-label { font-family:'Outfit',sans-serif; font-size:0.5rem; color:var(--text-dim); font-weight:700; margin-bottom:6px; letter-spacing:0.18em; }
         .wheel-container { display:flex; justify-content:center; align-items:center; width:100%; }
         .wheel {
-            height:120px; overflow-y:scroll; scroll-snap-type:y mandatory;
+            height:96px; overflow-y:scroll; scroll-snap-type:y mandatory;
             scrollbar-width:none; width:100%; max-width:42px;
-            mask-image:linear-gradient(to bottom,transparent,black 36%,black 64%,transparent);
+            mask-image:linear-gradient(to bottom,transparent,36%,black 36%,black 64%,transparent 64%);
         }
         .wheel::-webkit-scrollbar { display:none; }
         .wheel div {
-            height:40px; display:flex; justify-content:center; align-items:center;
+            height:32px; display:flex; justify-content:center; align-items:center;
             scroll-snap-align:center; font-family:'Outfit',sans-serif;
-            font-size:1.12rem; color:var(--text-dim); font-variant-numeric:tabular-nums; width:100%;
+            font-size:0.88rem; color:var(--text-dim); font-variant-numeric:tabular-nums; width:100%;
         }
-        .wheel div.selected { color:#fff; font-size:1.35rem; }
-        .colon { font-family:'Outfit',sans-serif; font-size:1.1rem; color:var(--text-dim); margin:0 1px; }
+        .wheel div.selected { color:#fff; font-size:1.1rem; }
+        .colon { font-family:'Outfit',sans-serif; font-size:0.95rem; color:var(--text-dim); margin:0 1px; }
         /* Total duration */
         .total-duration-bar {
             margin-top:10px; padding:9px 16px; background:var(--surface);
@@ -533,7 +533,7 @@ function createWheel(id,min,max,sel){
     for(let i=min;i<=max;i++){const d=document.createElement('div');d.textContent=i<10?'0'+i:''+i;d.dataset.value=i;w.appendChild(d);}
     w.innerHTML+='<div style="height:40px"></div>';
     w.onscroll=()=>{
-        const idx=Math.round(w.scrollTop/40);
+        const idx=Math.round(w.scrollTop/32);
         w.querySelectorAll('div[data-value]').forEach((el,i)=>{
             el.classList.toggle('selected',i===idx);
             if(i===idx){
@@ -551,11 +551,11 @@ function createWheel(id,min,max,sel){
             }
         });
     };
-    setTimeout(()=>{w.scrollTop=(sel-min)*40;},80);
+    setTimeout(()=>{w.scrollTop=(sel-min)*32;},80);
 }
 function setWheelValue(id,val,min){
     const w=document.getElementById(id);if(!w)return;
-    w.scrollTop=(val-min)*40;
+    w.scrollTop=(val-min)*32;
     w.querySelectorAll('div[data-value]').forEach((el,i)=>el.classList.toggle('selected',i===val-min));
 }
 createWheel('prepWheel',0,60,config.prep);
