@@ -752,7 +752,12 @@ function saveCustomPreset(){
     showToast('"'+name+'" gespeichert');
     closePresetModal();
 }
-function setCdPreset(m,s){cdConfig={min:m,sec:s};setWheelValue('cdMinWheel',m,0);setWheelValue('cdSecWheel',s,0);saveCdCfg();}
+function setCdPreset(m,s){
+    cdConfig={min:m,sec:s};
+    setWheelValue('cdMinWheel',m,0);setWheelValue('cdSecWheel',s,0);saveCdCfg();
+    const tot=m*60+s;
+    document.getElementById('timeDisplay').textContent=`${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
+}
 
 // ── MST Edit ──
 let mstEditIdx=-1,mstEditMin=0,mstEditSec=0;
