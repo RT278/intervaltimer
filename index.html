@@ -692,7 +692,7 @@ function updateMST(ts){
     outerCircle.style.strokeDashoffset=OUTER_CIRC*(1-Math.min(1,mstEl/getMSTTotal()));
     const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
-    if(remaining<=3.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
+    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
     if(remaining>0)animationFrame=requestAnimationFrame(updateMST);
     else runMSTStage(mstStageIndex+1);
 }
@@ -887,7 +887,7 @@ function updateInterval(ts){
     outerCircle.style.strokeDashoffset=OUTER_CIRC*(1-Math.min(1,totEl/totalWorkoutDuration));
     const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
-    if(remaining<=3.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
+    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
     if(remaining>0){animationFrame=requestAnimationFrame(updateInterval);return;}
     workoutElapsedAtStart+=duration;
     if(phase==='prep')runPhase('work',config.workMin*60+config.workSec);
@@ -933,7 +933,7 @@ function updateCountdown(ts){
     circle.style.strokeDashoffset=CIRC*(elapsed/duration);
     const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
-    if(remaining<=3.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
+    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
     if(remaining>0)animationFrame=requestAnimationFrame(updateCountdown);
     else finish();
 }
