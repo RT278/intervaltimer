@@ -994,7 +994,7 @@ function playCrystal(){
 function playCountdownTick(n){
     try{
         const t=audioCtx.currentTime;
-        const freq={3:200,2:280,1:380}[n]||280,vol={3:0.4,2:0.58,1:0.78}[n]||0.5;
+        const freq=n<=3?{3:200,2:280,1:380}[n]:160,vol=n<=3?{3:0.4,2:0.58,1:0.78}[n]:0.28;
         const o=audioCtx.createOscillator(),g=audioCtx.createGain();
         o.frequency.value=freq;o.type='sine';
         g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+0.006);

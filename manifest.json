@@ -2,7 +2,7 @@
   "name": "Aura Timer Pro",
   "short_name": "Aura",
   "description": "Interval Timer für Sport — Tabata, HIIT, MST & mehr",
-  "start_url": "./aura-timer-pro-v2.html",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#06080c",
   "theme_color": "#06080c",
