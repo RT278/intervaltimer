@@ -530,6 +530,34 @@ const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
 
 async function requestWakeLock(){try{if('wakeLock' in navigator)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
 function releaseWakeLock(){if(wakeLock){wakeLock.release();wakeLock=null;}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&isRunning&&!isPaused)requestWakeLock();});
+
+// ── Media Session ──
+const _MS_ART=[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2306080c'/%3E%3Ccircle cx='50' cy='52' r='28' fill='none' stroke='%234d9fff' stroke-width='5' stroke-dasharray='160 16' stroke-linecap='round' transform='rotate(-90 50 52)'/%3E%3Ccircle cx='50' cy='52' r='28' fill='none' stroke='%2300e5a0' stroke-width='5' stroke-dasharray='0 176' stroke-linecap='round'/%3E%3Cline x1='50' y1='14' x2='50' y2='24' stroke='%234d9fff' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='52' r='3' fill='%23f0f4f8'/%3E%3Cline x1='50' y1='52' x2='50' y2='36' stroke='%23f0f4f8' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E",sizes:"any",type:"image/svg+xml"}];
+let lastMSUpdateSec=-1;
+function setupMediaSession(){
+    if(!('mediaSession' in navigator))return;
+    navigator.mediaSession.metadata=new MediaMetadata({title:'Aura Timer Pro',artist:'Bereit...',artwork:_MS_ART});
+    navigator.mediaSession.setActionHandler('play',()=>{if(isPaused)togglePause();});
+    navigator.mediaSession.setActionHandler('pause',()=>{if(!isPaused)togglePause();});
+    navigator.mediaSession.setActionHandler('stop',()=>resetWorkout());
+    navigator.mediaSession.playbackState='playing';
+}
+function updateMediaSession(title,artist,position,total){
+    if(!('mediaSession' in navigator))return;
+    const sec=Math.floor(position);
+    if(sec===lastMSUpdateSec)return;
+    lastMSUpdateSec=sec;
+    navigator.mediaSession.metadata=new MediaMetadata({title,artist,artwork:_MS_ART});
+    navigator.mediaSession.playbackState=isPaused?'paused':'playing';
+    if(total>0)try{navigator.mediaSession.setPositionState({duration:Math.max(0.1,total),playbackRate:1,position:Math.min(Math.max(0,position),total)});}catch(e){}
+}
+function clearMediaSession(){
+    if(!('mediaSession' in navigator))return;
+    lastMSUpdateSec=-1;
+    navigator.mediaSession.playbackState='none';
+    try{navigator.mediaSession.setPositionState({});}catch(e){}
+}
 function handleAction(cb){if(isActionLocked)return;isActionLocked=true;cb();setTimeout(()=>isActionLocked=false,300);}
 
 let toastTimer;
@@ -673,7 +701,7 @@ function runMSTStage(idx){
     if(!isRunning||idx>=MST_STAGES.length){if(isRunning)finish();return;}
     mstStageIndex=idx;
     const [name,dur,col]=MST_STAGES[idx];
-    phase='work';duration=dur;startTime=performance.now();lastBeepSec=null;
+    phase='work';duration=dur;startTime=performance.now();lastBeepSec=null;lastMSUpdateSec=-1;
     circle.style.stroke=col;outerCircle.style.stroke=col;
     aura.style.setProperty('--glow-color',col);
     document.getElementById('statusLabel').textContent=name;
@@ -693,6 +721,8 @@ function updateMST(ts){
     const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
     if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
+    const _mstEl=MST_STAGES.slice(0,mstStageIndex).reduce((a,x)=>a+x[1],0)+(duration-remaining);
+    updateMediaSession(MST_STAGES[mstStageIndex][0],`Stufe ${mstStageIndex+1}/${MST_STAGES.length} · ${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')} verbleibend`,_mstEl,getMSTTotal());
     if(remaining>0)animationFrame=requestAnimationFrame(updateMST);
     else runMSTStage(mstStageIndex+1);
 }
@@ -798,6 +828,7 @@ function startWorkout(){
     handleAction(async()=>{
         if(audioCtx.state==='suspended')audioCtx.resume();
         await requestWakeLock();
+        setupMediaSession();
         isRunning=true;
         document.getElementById('startBtn').classList.add('hidden');
         document.getElementById('pauseBtn').classList.remove('hidden');
@@ -855,6 +886,7 @@ function resetWorkout(){
         isRunning=false;
         if(animationFrame)cancelAnimationFrame(animationFrame);
         releaseWakeLock();
+        clearMediaSession();
         if(isMSTMode)activateMST();
         else setMode(mode);
     });
@@ -868,7 +900,7 @@ function setAccentColor(col,raw){
 }
 function runPhase(p,d){
     if(!isRunning)return;
-    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;
+    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;lastMSUpdateSec=-1;
     const cols={prep:'var(--accent-prep)',work:'var(--accent-work)',rest:'var(--accent-rest)'};
     const raws={prep:'#4d9fff',work:'#00e5a0',rest:'#ff3d6b'};
     document.getElementById('statusLabel').textContent=p==='prep'?'Get Ready':p.charAt(0).toUpperCase()+p.slice(1);
@@ -888,6 +920,9 @@ function updateInterval(ts){
     const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
     if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
+    const _phLabel=phase==='prep'?'Get Ready':phase.charAt(0).toUpperCase()+phase.slice(1);
+    const _rnStr=phase!=='prep'?`Runde ${currentRound}/${config.rounds} · `:'';
+    updateMediaSession(_phLabel,`${_rnStr}${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')} verbleibend`,workoutElapsedAtStart+(duration-remaining),totalWorkoutDuration);
     if(remaining>0){animationFrame=requestAnimationFrame(updateInterval);return;}
     workoutElapsedAtStart+=duration;
     if(phase==='prep')runPhase('work',config.workMin*60+config.workSec);
@@ -903,6 +938,7 @@ function updateStopwatch(ts){
     const m=Math.floor(elapsed/60),s=Math.floor(elapsed%60),ms=Math.floor((elapsed%1)*10);
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${ms}`;
     circle.style.strokeDashoffset=CIRC*((elapsed%60)/60);
+    updateMediaSession('Stopwatch',`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} vergangen`,0,0);
     animationFrame=requestAnimationFrame(updateStopwatch);
 }
 function addSplit(){
@@ -934,6 +970,7 @@ function updateCountdown(ts){
     const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
     if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
+    updateMediaSession('Countdown',`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')} verbleibend`,duration-remaining,duration);
     if(remaining>0)animationFrame=requestAnimationFrame(updateCountdown);
     else finish();
 }
@@ -941,6 +978,7 @@ function updateCountdown(ts){
 // ── Finish ──
 function finish(){
     document.getElementById('statusLabel').textContent='Done ✓';
+    if('mediaSession' in navigator){lastMSUpdateSec=-1;navigator.mediaSession.metadata=new MediaMetadata({title:'Aura Timer Pro',artist:'Workout abgeschlossen ✓',artwork:_MS_ART});navigator.mediaSession.playbackState='paused';try{navigator.mediaSession.setPositionState({});}catch(e){}}
     aura.style.setProperty('--glow-color','rgba(255,255,255,0.6)');
     aura.classList.add('done-pulse');
     playOrchestral();
