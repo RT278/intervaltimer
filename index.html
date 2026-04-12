@@ -84,7 +84,8 @@
         .preset-sub { font-size:0.6rem; color:var(--text-dim); font-weight:400; }
         .preset-btn:active { background:rgba(255,255,255,0.1); transform:scale(0.95); }
         .preset-btn.custom-slot { border-style:dashed; }
-        .preset-btn.mst-preset { border-color:rgba(251,191,36,0.22); color:#fbbf24; }
+        .preset-btn.active { border-color:rgba(77,159,255,0.6); color:var(--text); background:rgba(77,159,255,0.1); }
+        .preset-btn.mst-preset.active { border-color:rgba(251,191,36,0.6); color:#fbbf24; background:rgba(251,191,36,0.08); }
         /* Timer ring — no filter/shadow on viewport, only on circle element */
         .timer-viewport {
             position:relative; width:64vw; max-width:250px;
@@ -367,10 +368,10 @@
             <button id="modeCountdownBtn" class="mode-btn" onclick="setMode('countdown')">Countdown</button>
         </div>
         <div id="presetRow" class="preset-row">
-            <button class="preset-btn" onclick="applyPreset('1min',5,1,0,10,7)">1min<span class="preset-sub">1min·10s·7R</span></button>
-            <button class="preset-btn" onclick="applyPreset('3min',5,3,0,20,8)">3min<span class="preset-sub">3min·20s·8R</span></button>
-            <button class="preset-btn" onclick="applyPreset('8min',5,8,0,30,4)">8min<span class="preset-sub">8min·30s·4R</span></button>
-            <button class="preset-btn mst-preset" onclick="activateMST()">MST<span class="preset-sub">Stufentest</span></button>
+            <button class="preset-btn" data-preset="1min" onclick="applyPreset('1min',5,1,0,10,7)">1min<span class="preset-sub">1min·10s·7R</span></button>
+            <button class="preset-btn" data-preset="3min" onclick="applyPreset('3min',5,3,0,20,8)">3min<span class="preset-sub">3min·20s·8R</span></button>
+            <button class="preset-btn" data-preset="8min" onclick="applyPreset('8min',5,8,0,30,4)">8min<span class="preset-sub">8min·30s·4R</span></button>
+            <button class="preset-btn mst-preset" data-preset="mst" onclick="activateMST()">MST<span class="preset-sub">Stufentest</span></button>
             <button class="preset-btn custom-slot" onclick="openPresetModal()">+ Eigenes</button>
         </div>
         <!-- Ring — no shadow/filter on wrapper, only on SVG circle via drop-shadow filter -->
@@ -623,10 +624,14 @@ function updateTotalDuration(){
 updateTotalDuration();
 
 // ── setMode ──
+function setActivePreset(name){
+    document.querySelectorAll('#presetRow .preset-btn').forEach(b=>b.classList.remove('active'));
+    if(name){const b=document.querySelector(`#presetRow [data-preset="${name}"]`);if(b)b.classList.add('active');}
+}
 function setMode(m, keepMST){
     if(animationFrame)cancelAnimationFrame(animationFrame);
     isRunning=false;isPaused=false;mode=m;
-    if(!keepMST)isMSTMode=false;
+    if(!keepMST){isMSTMode=false;setActivePreset(null);}
 
     ['Interval','Stopwatch','Countdown'].forEach(x=>{
         document.getElementById('mode'+x+'Btn').classList.toggle('active',m===x.toLowerCase()||(x==='Stopwatch'&&m==='stopwatch')||(x==='Countdown'&&m==='countdown')||(x==='Interval'&&m==='interval'));
@@ -673,7 +678,7 @@ function setMode(m, keepMST){
 
 // ── MST ──
 function activateMST(){
-    isMSTMode=true; mode='interval'; mstStageIndex=0;
+    isMSTMode=true; mode='interval'; mstStageIndex=0; setActivePreset('mst');
     document.getElementById('modeIntervalBtn').classList.add('active');
     document.getElementById('modeStopwatchBtn').classList.remove('active');
     document.getElementById('modeCountdownBtn').classList.remove('active');
@@ -744,7 +749,7 @@ function applyPreset(name,prep,wm,ws,rest,rounds){
     document.getElementById('statusLabel').textContent='Ready';
     timeDisplay.textContent='00:00';timeDisplay.className='main-time sz-normal';
     document.getElementById('roundDisplay').textContent='';
-    updateTotalDuration();showToast(name+' geladen');
+    setActivePreset(name);updateTotalDuration();showToast(name+' geladen');
 }
 
 // ── Persist config ──
@@ -758,7 +763,7 @@ function renderCustomPresets(){
     const addBtn=row.querySelector('.custom-slot');
     customPresets.forEach((p,i)=>{
         const btn=document.createElement('button');
-        btn.className='preset-btn user-preset';
+        btn.className='preset-btn user-preset';btn.dataset.preset=p.name;
         const ws=p.workMin*60+p.workSec;
         btn.innerHTML=`${p.name}<span class="preset-sub">${ws}s·${p.rest}s·${p.rounds}R</span><button class="preset-del" onclick="deleteCustomPreset(event,${i})">×</button>`;
         btn.onclick=(e)=>{if(!e.target.classList.contains('preset-del'))applyPreset(p.name,p.prep,p.workMin,p.workSec,p.rest,p.rounds);};
