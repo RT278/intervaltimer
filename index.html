@@ -533,10 +533,26 @@ async function requestWakeLock(){try{if('wakeLock' in navigator)wakeLock=await n
 function releaseWakeLock(){if(wakeLock){wakeLock.release();wakeLock=null;}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&isRunning&&!isPaused)requestWakeLock();});
 
+// ── iOS Media Session keep-alive (silent audio stream) ──
+let _msKeepAlive=null;
+function startMSKeepAlive(){
+    if(_msKeepAlive)return;
+    try{
+        const dest=audioCtx.createMediaStreamDestination();
+        _msKeepAlive=new Audio();
+        _msKeepAlive.srcObject=dest.stream;
+        _msKeepAlive.play().catch(()=>{});
+    }catch(e){}
+}
+function stopMSKeepAlive(){
+    if(_msKeepAlive){_msKeepAlive.pause();_msKeepAlive.srcObject=null;_msKeepAlive=null;}
+}
+
 // ── Media Session ──
 const _MS_ART=[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2306080c'/%3E%3Ccircle cx='50' cy='52' r='28' fill='none' stroke='%234d9fff' stroke-width='5' stroke-dasharray='160 16' stroke-linecap='round' transform='rotate(-90 50 52)'/%3E%3Ccircle cx='50' cy='52' r='28' fill='none' stroke='%2300e5a0' stroke-width='5' stroke-dasharray='0 176' stroke-linecap='round'/%3E%3Cline x1='50' y1='14' x2='50' y2='24' stroke='%234d9fff' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='52' r='3' fill='%23f0f4f8'/%3E%3Cline x1='50' y1='52' x2='50' y2='36' stroke='%23f0f4f8' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E",sizes:"any",type:"image/svg+xml"}];
 let lastMSUpdateSec=-1;
 function setupMediaSession(){
+    startMSKeepAlive();
     if(!('mediaSession' in navigator))return;
     navigator.mediaSession.metadata=new MediaMetadata({title:'Aura Timer Pro',artist:'Bereit...',artwork:_MS_ART});
     navigator.mediaSession.setActionHandler('play',()=>{if(isPaused)togglePause();});
@@ -554,6 +570,7 @@ function updateMediaSession(title,artist,position,total){
     if(total>0)try{navigator.mediaSession.setPositionState({duration:Math.max(0.1,total),playbackRate:1,position:Math.min(Math.max(0,position),total)});}catch(e){}
 }
 function clearMediaSession(){
+    stopMSKeepAlive();
     if(!('mediaSession' in navigator))return;
     lastMSUpdateSec=-1;
     navigator.mediaSession.playbackState='none';
@@ -723,9 +740,9 @@ function updateMST(ts){
     circle.style.strokeDashoffset=CIRC*(1-remaining/duration);
     const mstEl=MST_STAGES.slice(0,mstStageIndex).reduce((a,x)=>a+x[1],0)+(duration-remaining);
     outerCircle.style.strokeDashoffset=OUTER_CIRC*(1-Math.min(1,mstEl/getMSTTotal()));
-    const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
-    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
-    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
+    const _cs=Math.ceil(remaining),m=Math.floor(_cs/60),s=_cs%60;
+    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==_cs){playCountdownTick(_cs);lastBeepSec=_cs;}
     const _mstEl=MST_STAGES.slice(0,mstStageIndex).reduce((a,x)=>a+x[1],0)+(duration-remaining);
     updateMediaSession(MST_STAGES[mstStageIndex][0],`Stufe ${mstStageIndex+1}/${MST_STAGES.length} · ${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')} verbleibend`,_mstEl,getMSTTotal());
     if(remaining>0)animationFrame=requestAnimationFrame(updateMST);
@@ -922,12 +939,12 @@ function updateInterval(ts){
     circle.style.strokeDashoffset=CIRC*(1-remaining/duration);
     const totEl=workoutElapsedAtStart+(duration-remaining);
     outerCircle.style.strokeDashoffset=OUTER_CIRC*(1-Math.min(1,totEl/totalWorkoutDuration));
-    const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
-    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
-    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
+    const _cs=Math.ceil(remaining),m=Math.floor(_cs/60),s=_cs%60;
+    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==_cs){playCountdownTick(_cs);lastBeepSec=_cs;}
     const _phLabel=phase==='prep'?'Get Ready':phase.charAt(0).toUpperCase()+phase.slice(1);
     const _rnStr=phase!=='prep'?`Runde ${currentRound}/${config.rounds} · `:'';
-    updateMediaSession(_phLabel,`${_rnStr}${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')} verbleibend`,workoutElapsedAtStart+(duration-remaining),totalWorkoutDuration);
+    updateMediaSession(_phLabel,`${_rnStr}${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} verbleibend`,workoutElapsedAtStart+(duration-remaining),totalWorkoutDuration);
     if(remaining>0){animationFrame=requestAnimationFrame(updateInterval);return;}
     workoutElapsedAtStart+=duration;
     if(phase==='prep')runPhase('work',config.workMin*60+config.workSec);
@@ -972,10 +989,10 @@ function updateCountdown(ts){
     if(!isRunning||isPaused)return;
     const elapsed=(ts-startTime)/1000,remaining=Math.max(0,duration-elapsed);
     circle.style.strokeDashoffset=CIRC*(elapsed/duration);
-    const m=Math.floor(remaining/60),s=Math.ceil(remaining%60);
-    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')}`;
-    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==Math.ceil(remaining)){playCountdownTick(Math.ceil(remaining));lastBeepSec=Math.ceil(remaining);}
-    updateMediaSession('Countdown',`${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')} verbleibend`,duration-remaining,duration);
+    const _cs=Math.ceil(remaining),m=Math.floor(_cs/60),s=_cs%60;
+    timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==_cs){playCountdownTick(_cs);lastBeepSec=_cs;}
+    updateMediaSession('Countdown',`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} verbleibend`,duration-remaining,duration);
     if(remaining>0)animationFrame=requestAnimationFrame(updateCountdown);
     else finish();
 }
