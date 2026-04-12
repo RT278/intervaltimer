@@ -744,7 +744,7 @@ function updateMST(ts){
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==_cs){playCountdownTick(_cs);lastBeepSec=_cs;}
     const _mstEl=MST_STAGES.slice(0,mstStageIndex).reduce((a,x)=>a+x[1],0)+(duration-remaining);
-    updateMediaSession(MST_STAGES[mstStageIndex][0],`Stufe ${mstStageIndex+1}/${MST_STAGES.length} · ${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')} verbleibend`,_mstEl,getMSTTotal());
+    updateMediaSession(MST_STAGES[mstStageIndex][0],`Stufe ${mstStageIndex+1}/${MST_STAGES.length} · ${String(m).padStart(2,'0')}:${String(s===60?0:s).padStart(2,'0')} verbleibend`,duration-remaining,duration);
     if(remaining>0)animationFrame=requestAnimationFrame(updateMST);
     else runMSTStage(mstStageIndex+1);
 }
@@ -944,7 +944,7 @@ function updateInterval(ts){
     if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==_cs){playCountdownTick(_cs);lastBeepSec=_cs;}
     const _phLabel=phase==='prep'?'Get Ready':phase.charAt(0).toUpperCase()+phase.slice(1);
     const _rnStr=phase!=='prep'?`Runde ${currentRound}/${config.rounds} · `:'';
-    updateMediaSession(_phLabel,`${_rnStr}${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} verbleibend`,workoutElapsedAtStart+(duration-remaining),totalWorkoutDuration);
+    updateMediaSession(_phLabel,`${_rnStr}${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} verbleibend`,duration-remaining,duration);
     if(remaining>0){animationFrame=requestAnimationFrame(updateInterval);return;}
     workoutElapsedAtStart+=duration;
     if(phase==='prep')runPhase('work',config.workMin*60+config.workSec);
