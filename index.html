@@ -135,31 +135,41 @@
             .rc-bar{ height:12px; }
         }
         .block-options{
-            width:100%; max-width:520px; margin:18px auto 0; padding:0 20px;
-            display:flex; flex-direction:column; gap:10px; box-sizing:border-box;
+            width:100%; max-width:520px; margin:20px auto 0; padding:0 20px;
+            display:flex; flex-direction:column; box-sizing:border-box;
         }
         .bo-position{
-            background:rgba(255,255,255,0.035);
-            border:1px solid rgba(255,255,255,0.07);
-            border-left:3px solid rgba(255,255,255,0.14);
-            border-radius:10px; padding:10px 14px;
-            transition:border-color .3s ease, background .3s ease;
+            padding:14px 2px;
+            border-top:1px solid rgba(255,255,255,0.07);
+            transition:padding .35s ease, opacity .35s ease, background .35s ease;
         }
-        .bo-position.active{ border-left-color:var(--accent-work); background:rgba(0,229,160,0.07); }
+        .bo-position:first-child{ border-top:none; padding-top:0; }
+        .bo-position.collapsed{ padding:9px 2px; opacity:.45; }
+        .bo-position.active{
+            background:radial-gradient(ellipse 160% 120% at 0% 50%, rgba(0,229,160,0.09) 0%, transparent 62%);
+        }
+        .bo-head{ display:flex; align-items:center; gap:9px; }
+        .bo-dot{
+            width:6px; height:6px; border-radius:50%; flex-shrink:0; background:var(--text-dim);
+            transition:background .35s ease, box-shadow .35s ease;
+        }
+        .bo-position.active .bo-dot{ background:var(--accent-work); box-shadow:0 0 8px var(--accent-work); }
         .bo-tag{
-            font-family:'Outfit',sans-serif; font-size:.68rem; letter-spacing:.1em; text-transform:uppercase;
-            color:var(--text-mid); margin-bottom:4px;
+            font-family:'Outfit',sans-serif; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase;
+            color:var(--text-mid);
         }
         .bo-position.active .bo-tag{ color:var(--accent-work); }
-        .bo-options{ list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:5px 14px; }
-        .bo-options li{ font-family:'Outfit',sans-serif; font-size:.92rem; color:var(--text-main); }
-        .bo-position.active .bo-options li{ font-weight:600; }
+        .bo-count{ font-family:'Outfit',sans-serif; font-size:.7rem; color:var(--text-dim); margin-left:auto; }
+        .bo-options{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; }
+        .bo-options li{
+            font-family:'Outfit',sans-serif; font-size:1.05rem; font-weight:600; color:var(--text-main);
+            padding:8px 0; border-top:1px solid rgba(255,255,255,0.045);
+        }
+        .bo-options li:first-child{ border-top:none; padding-top:2px; }
         @media (min-width:700px){
-            .block-options{ max-width:960px; flex-direction:row; gap:16px; }
-            .bo-position{ flex:1; padding:16px 22px; }
+            .block-options{ max-width:640px; margin-top:24px; }
             .bo-tag{ font-size:.82rem; }
-            .bo-options{ flex-direction:column; gap:7px; }
-            .bo-options li{ font-size:1.2rem; }
+            .bo-options li{ font-size:1.32rem; padding:10px 0; }
         }
         /* Paused */
         .paused .circle-progress { animation:pulse 1.8s ease-in-out infinite; }
@@ -592,7 +602,8 @@ try{
     }
 }catch(e){}
 
-// Renders the full option list below the ring; highlights the position whose turn it currently is.
+// Renders the option list below the ring; expands fully as a preview before start,
+// then highlights the active position and collapses the others once running.
 function renderBlockOptions(){
     const container=document.getElementById('blockOptions');
     if(!container)return;
@@ -600,10 +611,13 @@ function renderBlockOptions(){
     const activeIdx=(currentRound-1)%positionsData.length;
     const showActive=isRunning&&phase!=='prep';
     container.innerHTML=positionsData.map((p,i)=>{
-        const cls='bo-position'+(showActive&&i===activeIdx?' active':'');
-        const tagHtml=p.tag?`<div class="bo-tag">${p.tag}</div>`:'';
-        const optsHtml=p.options.map(o=>`<li>${o}</li>`).join('');
-        return `<div class="${cls}">${tagHtml}<ul class="bo-options">${optsHtml}</ul></div>`;
+        const isActive=showActive&&i===activeIdx;
+        const isCollapsed=showActive&&i!==activeIdx;
+        const cls='bo-position'+(isActive?' active':'')+(isCollapsed?' collapsed':'');
+        const countHtml=isCollapsed?`<span class="bo-count">${p.options.length} Optionen</span>`:'';
+        const headHtml=`<div class="bo-head"><span class="bo-dot"></span><span class="bo-tag">${p.tag}</span>${countHtml}</div>`;
+        const optsHtml=isCollapsed?'':`<ul class="bo-options">${p.options.map(o=>`<li>${o}</li>`).join('')}</ul>`;
+        return `<div class="${cls}">${headHtml}${optsHtml}</div>`;
     }).join('');
 }
 renderBlockOptions();
