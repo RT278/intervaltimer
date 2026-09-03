@@ -115,7 +115,6 @@
         .sz-normal { font-size:3.3rem; }
         .sz-small  { font-size:2.45rem; }
         .sub-info { font-family:'Outfit',sans-serif; font-size:0.65rem; color:var(--text-dim); min-height:1em; margin-top:5px; }
-        .exercise-label { font-family:'Outfit',sans-serif; font-size:1rem; font-weight:500; color:var(--text-main); min-height:1.3em; margin-top:10px; padding:0 14px; line-height:1.3; }
         .round-counter{
             width:100%; max-width:520px; margin:16px auto 0; padding:0 20px; box-sizing:border-box;
         }
@@ -447,7 +446,6 @@
                 <div id="statusLabel" class="status-label">Ready</div>
                 <div id="timeDisplay" class="main-time sz-normal">00:00</div>
                 <div id="roundDisplay" class="sub-info"></div>
-                <div id="exerciseLabel" class="exercise-label"></div>
             </div>
             <div class="paused-overlay"><div class="paused-icon">⏸</div></div>
         </div>
@@ -575,8 +573,7 @@ try{const s=JSON.parse(localStorage.getItem('aura_cfg'));if(s)config={...config,
 try{const s=JSON.parse(localStorage.getItem('aura_cd'));if(s)cdConfig={...cdConfig,...s};}catch(e){}
 // Restore MST stage durations
 try{const d=JSON.parse(localStorage.getItem('aura_mst'));if(d)d.forEach((v,i)=>{if(MST_STAGES[i])MST_STAGES[i][1]=v;});}catch(e){}
-// Restore config + exercise labels/options from URL (shared workout link, e.g. from the EMOM page)
-let exerciseLabels=[];
+// Restore config + exercise options from URL (shared workout link, e.g. from the EMOM page)
 let positionsData=[]; // [{tag, options:[...]}, ...] — full option menu per position, for the list below the ring
 try{
     const qp=new URLSearchParams(location.search);
@@ -598,9 +595,6 @@ try{
             const options=optsStr.split('~').map(s=>s.trim()).filter(Boolean);
             return {tag, options};
         }).filter(p=>p.options.length>0);
-        exerciseLabels=positionsData.map(p=>p.options[0]||'');
-    }else if(qp.has('labels')){
-        exerciseLabels=qp.get('labels').split(',').map(s=>s.trim()).filter(Boolean);
     }
 }catch(e){}
 
@@ -808,7 +802,6 @@ function setMode(m, keepMST){
 
     document.getElementById('statusLabel').textContent=isMSTMode?'MST Ready':{interval:'Ready',stopwatch:'Stoppuhr',countdown:'Countdown'}[m];
     document.getElementById('roundDisplay').textContent='';
-    document.getElementById('exerciseLabel').textContent='';
 
     const td=document.getElementById('timeDisplay');
     td.className='main-time sz-normal';
@@ -843,7 +836,6 @@ function activateMST(){
     document.getElementById('timeDisplay').textContent='00:00';
     document.getElementById('timeDisplay').className='main-time sz-normal';
     document.getElementById('roundDisplay').textContent='';
-    document.getElementById('exerciseLabel').textContent='';
     updateRoundCounter();
     renderBlockOptions();
 }
@@ -881,7 +873,7 @@ function updateMST(ts){
 // ── Presets ──
 function applyPreset(name,prep,wm,ws,rest,rounds){
     if(isRunning){resetWorkout();setTimeout(()=>applyPreset(name,prep,wm,ws,rest,rounds),90);return;}
-    isMSTMode=false; config={prep,workMin:wm,workSec:ws,rest,rounds}; exerciseLabels=[]; positionsData=[];
+    isMSTMode=false; config={prep,workMin:wm,workSec:ws,rest,rounds}; positionsData=[];
     document.getElementById('mstView').classList.add('hidden');
     document.getElementById('setupView').classList.remove('hidden');
     document.getElementById('totalDurationBar').classList.remove('hidden');
@@ -895,7 +887,6 @@ function applyPreset(name,prep,wm,ws,rest,rounds){
     document.getElementById('statusLabel').textContent='Ready';
     timeDisplay.textContent='00:00';timeDisplay.className='main-time sz-normal';
     document.getElementById('roundDisplay').textContent='';
-    document.getElementById('exerciseLabel').textContent='';
     updateRoundCounter();
     renderBlockOptions();
     setActivePreset(name);updateTotalDuration();showToast(name+' geladen');
@@ -1058,11 +1049,6 @@ function runPhase(p,d){
     const cols={prep:'var(--accent-prep)',work:'var(--accent-work)',rest:'var(--accent-rest)'};
     const raws={prep:'#4d9fff',work:'#00e5a0',rest:'#ff3d6b'};
     document.getElementById('statusLabel').textContent=p==='prep'?'Get Ready':p.charAt(0).toUpperCase()+p.slice(1);
-    if(p!=='prep'){
-        document.getElementById('exerciseLabel').textContent=exerciseLabels.length?exerciseLabels[(currentRound-1)%exerciseLabels.length]:'';
-    }else{
-        document.getElementById('exerciseLabel').textContent='';
-    }
     updateRoundCounter();
     renderBlockOptions();
     setAccentColor(cols[p],raws[p]);
