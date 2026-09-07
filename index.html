@@ -194,26 +194,97 @@
 
         @media (min-width:900px) and (min-aspect-ratio:1/1){
             body.presentation-mode .app-container{
-                max-width:1200px;
+                max-width:1340px;
                 display:grid;
-                grid-template-columns:1fr 1fr;
-                grid-template-rows:auto auto;
-                column-gap:60px; row-gap:22px;
-                align-items:center; align-content:center;
+                grid-template-columns:minmax(0,0.95fr) minmax(0,1.05fr);
+                grid-template-rows:auto 1fr;
+                column-gap:clamp(40px,5vw,90px); row-gap:0;
+                align-content:center;
+                padding-top:clamp(70px,9vh,110px);
             }
-            body.presentation-mode .ring-wrapper{ grid-column:1; grid-row:1; justify-self:center; }
-            body.presentation-mode .controls-area{ grid-column:1; grid-row:2; justify-self:center; margin-top:0; }
-            body.presentation-mode #roundCounter{ grid-column:2; grid-row:1; margin:0; max-width:none; }
-            body.presentation-mode #blockOptions{ grid-column:2; grid-row:2; margin:0; max-width:none; }
+            /* Steuerung schwebt oben rechts, außerhalb des Inhaltsflusses */
+            body.presentation-mode .controls-area{
+                position:fixed; top:max(env(safe-area-inset-top),14px); right:64px; z-index:55;
+                width:auto; margin:0; gap:10px;
+            }
+            body.presentation-mode .controls-area .btn{
+                min-width:0; padding:11px 26px; font-size:.86rem; letter-spacing:.09em;
+            }
+            /* Links: Ring, darunter der Rundenzähler */
+            body.presentation-mode .ring-wrapper{
+                grid-column:1; grid-row:1; align-self:end; justify-self:center;
+            }
+            body.presentation-mode .timer-viewport{ width:min(34vw,430px); max-width:none; }
+            body.presentation-mode .status-label{ font-size:1.2rem; letter-spacing:.3em; }
+            body.presentation-mode .sz-normal{ font-size:clamp(3.6rem,6vw,5.4rem); }
+            body.presentation-mode #roundCounter{
+                grid-column:1; grid-row:2; align-self:start; justify-self:center;
+                margin:clamp(22px,3.5vh,40px) 0 0; padding:0; max-width:none; width:min(34vw,430px);
+            }
+            body.presentation-mode .rc-text{
+                font-size:1.55rem; letter-spacing:.05em; margin-bottom:12px;
+                color:var(--text-mid); font-weight:500;
+            }
+            body.presentation-mode .rc-bar{ height:10px; background:rgba(255,255,255,0.06); }
 
-            body.presentation-mode .timer-viewport{ width:min(38vw,480px); max-width:none; }
-            body.presentation-mode .status-label{ font-size:1.15rem; }
-            body.presentation-mode .sz-normal{ font-size:5.2rem; }
-            body.presentation-mode .rc-text{ font-size:2rem; margin-bottom:14px; }
-            body.presentation-mode .rc-bar{ height:16px; }
-            body.presentation-mode .bo-tag{ font-size:1.05rem; }
-            body.presentation-mode .bo-count{ font-size:.9rem; }
-            body.presentation-mode .bo-options li{ font-size:1.75rem; padding:14px 0; }
+            /* Rechts: die Übungen als eigenständige Bühne */
+            body.presentation-mode #blockOptions{
+                grid-column:2; grid-row:1/span 2; align-self:center;
+                margin:0; padding:0; max-width:none; width:100%;
+                gap:0;
+            }
+            body.presentation-mode .bo-position{
+                text-align:center; border-top:none; padding:0;
+            }
+            body.presentation-mode .bo-position.collapsed{ display:none; }
+            body.presentation-mode .bo-position.active{
+                background:none; animation:presentFade .5s ease both;
+            }
+            @keyframes presentFade{
+                from{ opacity:0; transform:translateY(14px); }
+                to{ opacity:1; transform:translateY(0); }
+            }
+            body.presentation-mode .bo-head{
+                justify-content:center; gap:14px; margin-bottom:clamp(24px,4vh,44px);
+            }
+            body.presentation-mode .bo-dot{ width:10px; height:10px; }
+            body.presentation-mode .bo-tag{
+                font-size:1.35rem; letter-spacing:.34em; font-weight:500;
+                color:var(--accent-work);
+            }
+            body.presentation-mode .bo-count{ display:none; }
+            body.presentation-mode .bo-options{
+                gap:clamp(14px,2.4vh,26px); align-items:stretch;
+            }
+            body.presentation-mode .bo-options li{
+                font-size:clamp(2rem,3.4vw,3.1rem); font-weight:600; line-height:1.15;
+                padding:clamp(16px,2.4vh,26px) 26px; border-top:none;
+                border-radius:18px;
+                background:linear-gradient(150deg, rgba(255,255,255,0.055) 0%, rgba(255,255,255,0.018) 100%);
+                box-shadow:inset 0 1px 0 rgba(255,255,255,0.07);
+                position:relative; overflow:hidden;
+            }
+            body.presentation-mode .bo-options li::before{
+                content:''; position:absolute; left:0; top:18%; bottom:18%; width:3px;
+                background:var(--accent-work); border-radius:0 3px 3px 0;
+                box-shadow:0 0 14px var(--accent-work); opacity:.85;
+            }
+            body.presentation-mode .bo-options li:first-child{ padding-top:clamp(16px,2.4vh,26px); }
+
+            /* Vorschau vor dem Start: alle Positionen sichtbar, daher kompakter */
+            body.presentation-mode #blockOptions.preview .bo-position{
+                margin-bottom:clamp(18px,3vh,34px);
+            }
+            body.presentation-mode #blockOptions.preview .bo-position:last-child{ margin-bottom:0; }
+            body.presentation-mode #blockOptions.preview .bo-options li{
+                font-size:clamp(1.25rem,1.8vw,1.7rem); padding:clamp(9px,1.3vh,14px) 22px;
+            }
+            body.presentation-mode #blockOptions.preview .bo-head{
+                margin-bottom:clamp(10px,1.6vh,18px);
+            }
+            body.presentation-mode #blockOptions.preview .bo-tag{
+                font-size:.95rem; letter-spacing:.24em; color:var(--text-mid);
+            }
         }
 
         /* Paused */
@@ -674,6 +745,7 @@ function renderBlockOptions(){
     if(!positionsData.length||mode!=='interval'||isMSTMode){container.innerHTML='';return;}
     const activeIdx=(currentRound-1)%positionsData.length;
     const showActive=isRunning&&phase!=='prep';
+    container.classList.toggle('preview',!showActive);
     container.innerHTML=positionsData.map((p,i)=>{
         const isActive=showActive&&i===activeIdx;
         const isCollapsed=showActive&&i!==activeIdx;
