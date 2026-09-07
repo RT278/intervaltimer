@@ -172,6 +172,50 @@
             .bo-tag{ font-size:.82rem; }
             .bo-options li{ font-size:1.32rem; padding:10px 0; }
         }
+
+        /* ── Präsentationsmodus (für Gruppen-Screen: iPad/Monitor) ── */
+        .present-toggle{
+            position:fixed; top:max(env(safe-area-inset-top),12px); right:12px; z-index:60;
+            width:38px; height:38px; border-radius:50%;
+            background:rgba(255,255,255,0.06); color:var(--text-mid); border:1px solid rgba(255,255,255,0.12);
+            font-size:1.05rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+            transition:background .2s ease, color .2s ease, border-color .2s ease;
+        }
+        .present-toggle:hover, .present-toggle:focus-visible{ background:rgba(255,255,255,.12); color:var(--text-main); outline:none; }
+        body.presentation-mode .present-toggle{ background:rgba(0,229,160,.14); color:var(--accent-work); border-color:rgba(0,229,160,.35); }
+
+        body.presentation-mode .mode-switcher,
+        body.presentation-mode #presetRow,
+        body.presentation-mode .dynamic-content,
+        body.presentation-mode .footer-toolbar{
+            display:none !important;
+        }
+        body.presentation-mode .app-container{ justify-content:center; min-height:100dvh; }
+
+        @media (min-width:900px) and (min-aspect-ratio:1/1){
+            body.presentation-mode .app-container{
+                max-width:1200px;
+                display:grid;
+                grid-template-columns:1fr 1fr;
+                grid-template-rows:auto auto;
+                column-gap:60px; row-gap:22px;
+                align-items:center; align-content:center;
+            }
+            body.presentation-mode .ring-wrapper{ grid-column:1; grid-row:1; justify-self:center; }
+            body.presentation-mode .controls-area{ grid-column:1; grid-row:2; justify-self:center; margin-top:0; }
+            body.presentation-mode #roundCounter{ grid-column:2; grid-row:1; margin:0; max-width:none; }
+            body.presentation-mode #blockOptions{ grid-column:2; grid-row:2; margin:0; max-width:none; }
+
+            body.presentation-mode .timer-viewport{ width:min(38vw,480px); max-width:none; }
+            body.presentation-mode .status-label{ font-size:1.15rem; }
+            body.presentation-mode .sz-normal{ font-size:5.2rem; }
+            body.presentation-mode .rc-text{ font-size:2rem; margin-bottom:14px; }
+            body.presentation-mode .rc-bar{ height:16px; }
+            body.presentation-mode .bo-tag{ font-size:1.05rem; }
+            body.presentation-mode .bo-count{ font-size:.9rem; }
+            body.presentation-mode .bo-options li{ font-size:1.75rem; padding:14px 0; }
+        }
+
         /* Paused */
         .paused .circle-progress { animation:pulse 1.8s ease-in-out infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.22} }
@@ -418,8 +462,10 @@
 </div>
 
 <!-- App -->
+<button id="presentToggleBtn" class="present-toggle" aria-label="Präsentationsmodus" title="Präsentationsmodus" onclick="togglePresentationMode()">⛶</button>
+
 <div class="app-container">
-    <div style="flex-shrink:0;width:100%;display:flex;flex-direction:column;align-items:center">
+    <div class="ring-wrapper" style="flex-shrink:0;width:100%;display:flex;flex-direction:column;align-items:center">
         <div class="mode-switcher">
             <button id="modeIntervalBtn" class="mode-btn active" onclick="setMode('interval')">Interval</button>
             <button id="modeStopwatchBtn" class="mode-btn" onclick="setMode('stopwatch')">Stoppuhr</button>
@@ -596,7 +642,29 @@ try{
             return {tag, options};
         }).filter(p=>p.options.length>0);
     }
+    if(qp.get('present')==='1'){
+        document.body.classList.add('presentation-mode');
+        const btn0=document.getElementById('presentToggleBtn');
+        if(btn0){ btn0.setAttribute('aria-label','Präsentationsmodus beenden'); btn0.title='Präsentationsmodus beenden'; }
+    }
 }catch(e){}
+
+// Ein-/Ausschalten der Präsentationsansicht (großer, aufgeräumter Screen für die Gruppe).
+function togglePresentationMode(){
+    const isOn=document.body.classList.toggle('presentation-mode');
+    try{
+        const url=new URL(location.href);
+        if(isOn){ url.searchParams.set('present','1'); }
+        else{ url.searchParams.delete('present'); }
+        history.replaceState(null,'',url);
+    }catch(e){}
+    const btn=document.getElementById('presentToggleBtn');
+    if(btn){
+        const label=isOn?'Präsentationsmodus beenden':'Präsentationsmodus';
+        btn.setAttribute('aria-label',label);
+        btn.title=label;
+    }
+}
 
 // Renders the option list below the ring; expands fully as a preview before start,
 // then highlights the active position and collapses the others once running.
