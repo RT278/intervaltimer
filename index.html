@@ -166,11 +166,17 @@
             font-family:'Outfit',sans-serif; font-size:1.05rem; font-weight:600; color:var(--text-main);
             padding:8px 0; border-top:1px solid rgba(255,255,255,0.045);
         }
+        .bo-name{ display:block; }
+        .bo-dose{
+            display:block; font-size:.76rem; font-weight:400; color:var(--text-mid);
+            margin-top:2px; letter-spacing:.01em;
+        }
         .bo-options li:first-child{ border-top:none; padding-top:2px; }
         @media (min-width:700px){
             .block-options{ max-width:640px; margin-top:24px; }
             .bo-tag{ font-size:.82rem; }
             .bo-options li{ font-size:1.32rem; padding:10px 0; }
+            .bo-dose{ font-size:.88rem; margin-top:3px; }
         }
 
         /* ── Präsentationsmodus (für Gruppen-Screen: iPad/Monitor) ── */
@@ -268,6 +274,10 @@
             body.presentation-mode .bo-options li + li{
                 border-top:1px solid rgba(255,255,255,0.06);
             }
+            body.presentation-mode .bo-dose{
+                font-size:clamp(.95rem,1.15vw,1.3rem); font-weight:400;
+                color:var(--text-mid); margin-top:6px; letter-spacing:.02em;
+            }
 
             /* Vorschau vor dem Start: alle Positionen sichtbar, daher kompakter und ruhiger */
             body.presentation-mode #blockOptions.preview .bo-position{
@@ -277,6 +287,9 @@
             body.presentation-mode #blockOptions.preview .bo-options li{
                 font-size:clamp(1.15rem,1.6vw,1.5rem); font-weight:500;
                 color:var(--text-main); padding:clamp(6px,.9vh,10px) 0;
+            }
+            body.presentation-mode #blockOptions.preview .bo-dose{
+                font-size:clamp(.78rem,.9vw,.95rem); margin-top:2px;
             }
             body.presentation-mode #blockOptions.preview .bo-head{
                 margin-bottom:clamp(8px,1.3vh,14px);
@@ -289,6 +302,17 @@
         /* Paused */
         .paused .circle-progress { animation:pulse 1.8s ease-in-out infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.22} }
+
+        /* Signal: Ende der Halteübung (nach 40 s Arbeitszeit) */
+        .hold-flash{ animation:holdFlash .95s ease-out 1; }
+        @keyframes holdFlash{
+            0%   { filter:none; transform:scale(1); }
+            12%  { filter:brightness(2.1) saturate(1.3); transform:scale(1.035); }
+            30%  { filter:none; transform:scale(1); }
+            48%  { filter:brightness(2.1) saturate(1.3); transform:scale(1.035); }
+            66%  { filter:none; transform:scale(1); }
+            100% { filter:none; transform:scale(1); }
+        }
         .paused-overlay { display:none; position:absolute; inset:0; justify-content:center; align-items:center; border-radius:50%; }
         .paused .paused-overlay { display:flex; }
         .paused-icon { font-size:1.7rem; opacity:0.4; }
@@ -678,6 +702,19 @@ let mode='interval', isMSTMode=false;
 let animationFrame=null,startTime=0,pausedAt=0,wakeLock=null,isActionLocked=false;
 let duration=0,phase='prep',currentRound=1,isRunning=false,isPaused=false;
 let splits=[],lastBeepSec=null,totalWorkoutDuration=0,workoutElapsedAtStart=0;
+const HOLD_FLASH_AT=40; // Sekunden Arbeitszeit, nach denen das Signal kommt
+let holdFlashDone=false;
+
+// Kurzes doppeltes Aufflackern des Timers als Signal, dass die 40 s der Halteübungen um sind.
+function triggerHoldFlash(){
+    const el=document.getElementById('timerContainer');
+    if(!el)return;
+    el.classList.remove('hold-flash');
+    void el.offsetWidth; // Reflow erzwingen, damit die Animation erneut startet
+    el.classList.add('hold-flash');
+    setTimeout(()=>el.classList.remove('hold-flash'),1000);
+    if(navigator.vibrate)navigator.vibrate([60,60,60]);
+}
 let mstStageIndex=0;
 let workoutHistory=[];
 try{workoutHistory=JSON.parse(localStorage.getItem('aura_h')||'[]');}catch(e){}
@@ -708,7 +745,15 @@ try{
             const sepIdx=posStr.indexOf(':');
             const tag=sepIdx>=0?posStr.slice(0,sepIdx):'';
             const optsStr=sepIdx>=0?posStr.slice(sepIdx+1):posStr;
-            const options=optsStr.split('~').map(s=>s.trim()).filter(Boolean);
+            // Jede Option ist "Name" oder "Name^Vorgabe"
+            const options=optsStr.split('~').map(s=>{
+                const raw=s.trim();
+                if(!raw)return null;
+                const dIdx=raw.indexOf('^');
+                return dIdx>=0
+                    ? {name:raw.slice(0,dIdx).trim(), dose:raw.slice(dIdx+1).trim()}
+                    : {name:raw, dose:''};
+            }).filter(o=>o&&o.name);
             return {tag, options};
         }).filter(p=>p.options.length>0);
     }
@@ -751,7 +796,7 @@ function renderBlockOptions(){
         const cls='bo-position'+(isActive?' active':'')+(isCollapsed?' collapsed':'');
         const countHtml=isCollapsed?`<span class="bo-count">${p.options.length} Optionen</span>`:'';
         const headHtml=`<div class="bo-head"><span class="bo-dot"></span><span class="bo-tag">${p.tag}</span>${countHtml}</div>`;
-        const optsHtml=isCollapsed?'':`<ul class="bo-options">${p.options.map(o=>`<li>${o}</li>`).join('')}</ul>`;
+        const optsHtml=isCollapsed?'':`<ul class="bo-options">${p.options.map(o=>`<li><span class="bo-name">${o.name}</span>${o.dose?`<span class="bo-dose">${o.dose}</span>`:''}</li>`).join('')}</ul>`;
         return `<div class="${cls}">${headHtml}${optsHtml}</div>`;
     }).join('');
 }
@@ -1184,7 +1229,7 @@ function setAccentColor(col,raw){
 }
 function runPhase(p,d){
     if(!isRunning)return;
-    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;lastMSUpdateSec=-1;
+    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;lastMSUpdateSec=-1;holdFlashDone=false;
     const cols={prep:'var(--accent-prep)',work:'var(--accent-work)',rest:'var(--accent-rest)'};
     const raws={prep:'#4d9fff',work:'#00e5a0',rest:'#ff3d6b'};
     document.getElementById('statusLabel').textContent=p==='prep'?'Get Ready':p.charAt(0).toUpperCase()+p.slice(1);
@@ -1205,6 +1250,11 @@ function updateInterval(ts){
     const _cs=Math.ceil(remaining),m=Math.floor(_cs/60),s=_cs%60;
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==_cs){playCountdownTick(_cs);lastBeepSec=_cs;}
+    // Signal nach 40 s Arbeitszeit: Ende der Halteübungen (30–40 s)
+    if(phase==='work'&&!holdFlashDone&&elapsed>=HOLD_FLASH_AT&&duration>HOLD_FLASH_AT){
+        holdFlashDone=true;
+        triggerHoldFlash();
+    }
     const _phLabel=phase==='prep'?'Get Ready':phase.charAt(0).toUpperCase()+phase.slice(1);
     const _rnStr=phase!=='prep'?`Runde ${currentRound}/${config.rounds} · `:'';
     updateMediaSession(_phLabel,`${_rnStr}${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} verbleibend`,duration-remaining,duration);
