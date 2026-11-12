@@ -146,6 +146,22 @@
         }
         .bo-position:first-child{ border-top:none; padding-top:0; }
         .bo-position.collapsed{ padding:9px 2px; opacity:.45; }
+        /* Hoehe animierbar machen: 1fr -> 0fr kollabiert weich auf null */
+        .bo-body{
+            display:grid; grid-template-rows:1fr;
+            transition:grid-template-rows .5s cubic-bezier(.25,.8,.3,1), opacity .34s ease;
+        }
+        .bo-body > ul{ min-height:0; overflow:hidden; }
+        .bo-position.collapsed .bo-body{ grid-template-rows:0fr; opacity:0; }
+        /* Badges gehoeren nur zu bestimmten Zustaenden */
+        .bo-next{ display:none; }
+        .bo-position.upcoming .bo-next,
+        .bo-position.preview-next .bo-next{ display:inline-block; }
+        .bo-count{ display:none; }
+        .bo-position.collapsed .bo-count{ display:inline; }
+        /* Waehrend des Aufbaus nicht animieren */
+        .bo-nofx .bo-position, .bo-nofx .bo-body, .bo-nofx .bo-inner,
+        .bo-nofx .bo-dot, .bo-nofx .bo-tag{ transition:none !important; animation:none !important; }
         .bo-position.active{
             background:radial-gradient(ellipse 160% 120% at 50% 50%, rgba(0,229,160,0.09) 0%, transparent 62%);
         }
@@ -158,6 +174,7 @@
         .bo-tag{
             font-family:'Outfit',sans-serif; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase;
             color:var(--text-mid);
+            transition:color .34s ease, font-size .5s cubic-bezier(.25,.8,.3,1);
         }
         .bo-position.active .bo-tag{ color:var(--accent-work); }
         .bo-next{
@@ -173,30 +190,30 @@
         .bo-position.active.upcoming .bo-tag{ color:var(--text-mid); }
         .bo-position.active.upcoming{ background:none; }
         /* Vorschau gegen Rundenende: sichtbar, aber klar nachrangig zur laufenden Uebung */
-        .bo-position.preview-next{
-            opacity:.62;
-            animation:previewIn .45s ease both;
-        }
+        .bo-position.preview-next{ opacity:.62; }
         .bo-position.preview-next .bo-dot{ background:var(--text-mid); box-shadow:none; }
         .bo-position.preview-next .bo-tag{ color:var(--text-mid); }
         .bo-position.preview-next .bo-options li{ font-weight:500; }
-        @keyframes previewIn{
-            from{ opacity:0; transform:translateY(-6px); }
-            to{ opacity:.62; transform:translateY(0); }
-        }
-        @media (prefers-reduced-motion:reduce){
-            .bo-position.preview-next{ animation:none; }
-        }
         .bo-count{ font-family:'Outfit',sans-serif; font-size:.7rem; color:var(--text-dim); }
-        .bo-options{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; align-items:center; }
+        .bo-options{ list-style:none; margin:0; padding:10px 0 0; display:flex; flex-direction:column; align-items:center; }
         .bo-options li{
             font-family:'Outfit',sans-serif; font-size:1.05rem; font-weight:600; color:var(--text-main);
             padding:8px 0; border-top:1px solid rgba(255,255,255,0.045);
+            transition:font-size .62s cubic-bezier(.22,.9,.26,1), font-weight .4s ease,
+                       padding .62s cubic-bezier(.22,.9,.26,1), opacity .45s ease,
+                       transform .55s cubic-bezier(.22,.9,.26,1);
         }
+        /* Die Uebungen des neu aktiven Blocks gleiten leicht versetzt nach, das wirkt
+           ruhiger als ein gleichzeitiges Aufziehen aller Zeilen. */
+        .bo-position.active .bo-options li:nth-child(2){ transition-delay:.07s; }
+        .bo-position.active .bo-options li:nth-child(3){ transition-delay:.14s; }
         .bo-name{ display:block; }
         .bo-dose{
             display:block; font-size:.76rem; font-weight:400; color:var(--text-mid);
-            margin-top:2px; letter-spacing:.01em;
+            margin-top:2px; letter-spacing:.01em; overflow:hidden;
+            transition:opacity .4s ease, max-height .5s cubic-bezier(.25,.8,.3,1),
+                       margin .4s ease, font-size .5s cubic-bezier(.25,.8,.3,1);
+            max-height:3em; opacity:1;
         }
         .bo-options li:first-child{ border-top:none; padding-top:2px; }
         @media (min-width:700px){
@@ -271,13 +288,19 @@
             body.presentation-mode .bo-position{
                 text-align:left; border-top:none; padding:0; background:none;
             }
-            body.presentation-mode .bo-position.collapsed{ display:none; }
-            body.presentation-mode .bo-position.active{
-                background:none; animation:presentFade .45s ease both;
+            /* Komplette Position hoehenanimiert statt hartem display:none */
+            body.presentation-mode .bo-position{
+                display:grid; grid-template-rows:1fr; opacity:1;
+                transition:grid-template-rows .55s cubic-bezier(.25,.8,.3,1),
+                           opacity .4s ease, margin .45s ease, padding .45s ease;
             }
-            @keyframes presentFade{
-                from{ opacity:0; transform:translateY(12px); }
-                to{ opacity:1; transform:translateY(0); }
+            body.presentation-mode .bo-inner{ min-height:0; overflow:hidden; }
+            body.presentation-mode .bo-position.collapsed{
+                grid-template-rows:0fr; opacity:0; margin:0; padding:0; border-top:none;
+            }
+            body.presentation-mode .bo-position.active{ background:none; }
+            body.presentation-mode .bo-position.collapsed .bo-options li{
+                opacity:0; transform:translateY(12px);
             }
             body.presentation-mode .bo-head{
                 justify-content:flex-start; gap:12px; margin-bottom:clamp(20px,3.4vh,38px);
@@ -306,10 +329,11 @@
             body.presentation-mode .bo-position.preview-next .bo-options li{
                 font-size:clamp(1.15rem,1.7vw,1.6rem); padding:clamp(5px,.8vh,9px) 0;
             }
-            body.presentation-mode .bo-position.preview-next .bo-dose{ display:none; }
-            @keyframes previewIn{
-                from{ opacity:0; transform:translateY(-6px); }
-                to{ opacity:.5; transform:translateY(0); }
+            body.presentation-mode .bo-position.preview-next .bo-dose{
+                opacity:0; max-height:0; margin-top:0;
+            }
+            body.presentation-mode .bo-position.preview-next .bo-options li{
+                opacity:1; transform:none;
             }
             body.presentation-mode .bo-count{ display:none; }
             body.presentation-mode .bo-options{
@@ -378,6 +402,9 @@
         }
         .countdown-overlay.beat span{ animation:heartbeat var(--beat-dur,1s) cubic-bezier(.22,.9,.3,1) 1 both; }
 
+        @media (prefers-reduced-motion:reduce){
+            .bo-position, .bo-body, .bo-inner, .bo-options li{ transition-duration:.01ms !important; }
+        }
         /* Paused */
         .paused .circle-progress { animation:pulse 1.8s ease-in-out infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.22} }
@@ -872,10 +899,43 @@ function togglePresentationMode(){
 
 // Renders the option list below the ring; expands fully as a preview before start,
 // then highlights the active position and collapses the others once running.
+function blockOptionsSignature(){
+    return positionsData.map(p=>p.tag+'\u0001'+p.options.map(o=>o.name+'\u0002'+(o.dose||'')).join('\u0003')).join('\u0004');
+}
+let boSignature=null;
+
+// Baut die Liste einmalig auf. Danach werden nur noch Klassen umgeschaltet,
+// damit die CSS-Uebergaenge auf bestehenden Elementen laufen koennen.
+function buildBlockOptions(container){
+    container.innerHTML=positionsData.map((p,i)=>{
+        const opts=p.options.map(o=>
+            `<li><span class="bo-name">${o.name}</span>${o.dose?`<span class="bo-dose">${o.dose}</span>`:''}</li>`
+        ).join('');
+        return `<div class="bo-position" data-i="${i}"><div class="bo-inner">`
+             + `<div class="bo-head"><span class="bo-dot"></span>`
+             + `<span class="bo-next">Gleich</span>`
+             + `<span class="bo-tag">${p.tag}</span>`
+             + `<span class="bo-count">${p.options.length} Optionen</span></div>`
+             + `<div class="bo-body"><ul class="bo-options">${opts}</ul></div>`
+             + `</div></div>`;
+    }).join('');
+}
+
 function renderBlockOptions(){
     const container=document.getElementById('blockOptions');
     if(!container)return;
-    if(!positionsData.length||mode!=='interval'||isMSTMode){container.innerHTML='';return;}
+    if(!positionsData.length||mode!=='interval'||isMSTMode){
+        container.innerHTML=''; boSignature=null; return;
+    }
+    // Nur bei wirklich neuem Inhalt neu aufbauen — sonst ginge jede Animation verloren.
+    const sig=blockOptionsSignature();
+    if(sig!==boSignature){
+        boSignature=sig;
+        container.classList.add('bo-nofx');   // Aufbau nicht animieren
+        buildBlockOptions(container);
+        void container.offsetWidth;
+        requestAnimationFrame(()=>container.classList.remove('bo-nofx'));
+    }
     // In der Pause (Tabata) schon die kommende Position zeigen — dort wird sie gebraucht.
     const isRest=phase==='rest';
     const effRound=isRest?currentRound+1:currentRound;
@@ -886,18 +946,15 @@ function renderBlockOptions(){
     const nextIdx=currentRound%positionsData.length;
     const showNext=previewNext&&!isRest&&positionsData.length>1&&nextIdx!==activeIdx;
     container.classList.toggle('preview',!showActive);
-    container.innerHTML=positionsData.map((p,i)=>{
+    Array.prototype.forEach.call(container.children,(el,i)=>{
         const isActive=showActive&&i===activeIdx;
         const isNext=showNext&&i===nextIdx&&!isActive;
         const isCollapsed=showActive&&!isActive&&!isNext;
-        const cls='bo-position'+(isActive?' active':'')+(isCollapsed?' collapsed':'')
-                 +(isActive&&isRest?' upcoming':'')+(isNext?' preview-next':'');
-        const countHtml=isCollapsed?`<span class="bo-count">${p.options.length} Optionen</span>`:'';
-        const nextHtml=((isActive&&isRest)||isNext)?'<span class="bo-next">Gleich</span>':'';
-        const headHtml=`<div class="bo-head"><span class="bo-dot"></span>${nextHtml}<span class="bo-tag">${p.tag}</span>${countHtml}</div>`;
-        const optsHtml=isCollapsed?'':`<ul class="bo-options">${p.options.map(o=>`<li><span class="bo-name">${o.name}</span>${o.dose?`<span class="bo-dose">${o.dose}</span>`:''}</li>`).join('')}</ul>`;
-        return `<div class="${cls}">${headHtml}${optsHtml}</div>`;
-    }).join('');
+        el.classList.toggle('active',isActive);
+        el.classList.toggle('collapsed',isCollapsed);
+        el.classList.toggle('upcoming',isActive&&isRest);
+        el.classList.toggle('preview-next',isNext);
+    });
 }
 renderBlockOptions();
 
