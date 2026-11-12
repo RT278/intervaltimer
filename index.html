@@ -299,12 +299,18 @@
                 grid-template-rows:0fr; opacity:0; margin:0; padding:0; border-top:none;
             }
             body.presentation-mode .bo-position.active{ background:none; }
+            /* Reihenfolge der Werte: grid-template-rows, opacity, margin, padding */
             body.presentation-mode .bo-position.bo-roll-out{
-                transition-delay:.22s, .3s, .22s, .22s;
+                transition-duration:.9s, .45s, .9s, .9s;
+                transition-delay:.55s, .8s, .55s, .55s;
+            }
+            body.presentation-mode .bo-position.bo-roll-in{
+                transition-duration:.9s, .6s, .9s, .9s;
+                transition-delay:.55s, .25s, .55s, .55s;
             }
             body.presentation-mode .bo-position.bo-roll-out .bo-head{
                 transform-origin:0% 100%;
-                animation:boTipBack .4s cubic-bezier(.55,.05,.8,.4) both;
+                animation:boTipBack .7s cubic-bezier(.5,.05,.75,.45) .05s both;
             }
             body.presentation-mode .bo-position.collapsed .bo-options li{
                 opacity:0; transform:translateY(12px);
@@ -413,48 +419,64 @@
         /* Walzenwechsel wie am Spielautomaten: die alten Zeilen kippen ueber ihre
            Unterkante nach hinten weg, die neuen rollen von unten herauf und rasten
            mit einem kleinen Nachfedern ein. Zeilen laufen versetzt, wie einzelne Walzen. */
+        /* Ablauf (gesamt rund 2 s):
+           0,0–1,0 s  alte Zeilen kippen nacheinander ueber die Oberkante nach hinten weg
+           0,0–0,35 s neue Zeilen holen aus und verschwinden hinter der Walze
+           0,35–1,6 s neue Zeilen rollen von unten herauf, schiessen ueber und rasten
+                      mit einem zweiten kleinen Nachschwingen ein
+           0,55–1,45 s alter Block klappt zusammen, neuer rueckt nach oben */
         .bo-position.bo-roll-out .bo-options li{
             transform-origin:50% 100%;
-            animation:boTipBack .46s cubic-bezier(.55,.05,.8,.4) both;
+            animation:boTipBack .8s cubic-bezier(.5,.05,.75,.45) both;
         }
-        .bo-position.bo-roll-out .bo-options li:nth-child(2){ animation-delay:.06s; }
-        .bo-position.bo-roll-out .bo-options li:nth-child(3){ animation-delay:.12s; }
-        /* Hoehe des alten Blocks erst einklappen, wenn das Kippen begonnen hat */
-        .bo-position.bo-roll-out .bo-body{ transition-delay:.2s; }
+        .bo-position.bo-roll-out .bo-options li:nth-child(2){ animation-delay:.12s; }
+        .bo-position.bo-roll-out .bo-options li:nth-child(3){ animation-delay:.24s; }
+        /* Hoehe des alten Blocks erst einklappen, wenn das Kippen gut sichtbar laeuft */
+        .bo-position.bo-roll-out .bo-body{ transition-duration:.9s, .5s; transition-delay:.55s, .7s; }
+        .bo-position.bo-roll-out{ transition-duration:.9s, .6s, .35s; transition-delay:.55s, .7s, 0s; }
 
         .bo-position.bo-roll-in .bo-options li{
             transform-origin:50% 50%;
-            animation:boRollIn .95s linear both;
+            animation:boRollIn 1.55s linear both;
         }
-        .bo-position.bo-roll-in .bo-options li:nth-child(2){ animation-delay:.08s; }
-        .bo-position.bo-roll-in .bo-options li:nth-child(3){ animation-delay:.16s; }
+        .bo-position.bo-roll-in .bo-options li:nth-child(2){ animation-delay:.15s; }
+        .bo-position.bo-roll-in .bo-options li:nth-child(3){ animation-delay:.3s; }
         /* Gross werden erst, wenn die Zeile hinter der Walze verschwunden ist —
-           zeitgleich mit dem Einklappen des alten Blocks, so bleibt die Gesamthoehe ruhig. */
-        .bo-position.bo-roll-in .bo-options li,
-        .bo-position.bo-roll-in .bo-dose{ transition-delay:.21s; }
+           zeitgleich mit dem Einklappen des alten Blocks, so bleibt die Gesamthoehe ruhig.
+           Reihenfolge der Werte: font-size, font-weight, padding, opacity, transform */
+        .bo-position.bo-roll-in .bo-options li{
+            transition-duration:.9s, .5s, .9s, .45s, .55s;
+            transition-delay:.33s;
+        }
+        .bo-position.bo-roll-in .bo-dose{ transition-duration:.6s, .9s, .6s, .9s; transition-delay:.33s; }
         .bo-position.bo-roll-in .bo-options li:nth-child(2),
-        .bo-position.bo-roll-in .bo-options li:nth-child(2) .bo-dose{ transition-delay:.29s; }
+        .bo-position.bo-roll-in .bo-options li:nth-child(2) .bo-dose{ transition-delay:.48s; }
         .bo-position.bo-roll-in .bo-options li:nth-child(3),
-        .bo-position.bo-roll-in .bo-options li:nth-child(3) .bo-dose{ transition-delay:.37s; }
-        .bo-position.bo-roll-in .bo-head{ animation:boHeadIn .5s cubic-bezier(.2,.75,.3,1) .12s both; }
+        .bo-position.bo-roll-in .bo-options li:nth-child(3) .bo-dose{ transition-delay:.63s; }
+        .bo-position.bo-roll-in .bo-head{ animation:boHeadIn .8s cubic-bezier(.2,.75,.3,1) .25s both; }
 
         @keyframes boTipBack{
-            0%  { transform:perspective(700px) rotateX(0deg);   opacity:1; }
-            100%{ transform:perspective(700px) translateY(-35%) rotateX(88deg); opacity:0; }
+            0%  { transform:perspective(600px) rotateX(0deg); opacity:1; filter:none; }
+            60% { opacity:.8; filter:blur(.6px); }
+            100%{ transform:perspective(600px) translateY(-60%) rotateX(90deg); opacity:0; filter:blur(1.5px); }
         }
         /* Anlauf: die Vorschauzeile holt kurz nach unten aus und verschwindet hinter
-           der Walze, dann rollt sie gross von unten herauf und federt beim Einrasten. */
+           der Walze, dann rollt sie gross von unten herauf (leicht verwischt wie eine
+           drehende Walze), schiesst ueber und schwingt einmal nach, bevor sie einrastet. */
         @keyframes boRollIn{
-            0%  { transform:perspective(700px) translateY(0) rotateX(0deg);
+            0%  { transform:perspective(600px) translateY(0) rotateX(0deg); filter:none;
                   animation-timing-function:cubic-bezier(.55,.05,.85,.4); }
-            22% { transform:perspective(700px) translateY(55%) rotateX(-78deg); opacity:0;
-                  animation-timing-function:cubic-bezier(.2,.7,.35,1); }
-            78% { transform:perspective(700px) translateY(-3%) rotateX(6deg); opacity:1;
-                  animation-timing-function:cubic-bezier(.4,0,.4,1); }
-            100%{ transform:perspective(700px) translateY(0)   rotateX(0deg); }
+            21% { transform:perspective(600px) translateY(80%) rotateX(-90deg); opacity:0; filter:blur(1.5px);
+                  animation-timing-function:cubic-bezier(.25,.6,.35,1); }
+            40% { opacity:1; filter:blur(.8px); }
+            66% { transform:perspective(600px) translateY(-7%) rotateX(16deg); filter:none;
+                  animation-timing-function:cubic-bezier(.45,0,.55,1); }
+            84% { transform:perspective(600px) translateY(2%) rotateX(-5deg);
+                  animation-timing-function:cubic-bezier(.45,0,.55,1); }
+            100%{ transform:perspective(600px) translateY(0) rotateX(0deg); filter:none; }
         }
         @keyframes boHeadIn{
-            0%  { transform:translateY(14px); opacity:0; }
+            0%  { transform:translateY(18px); opacity:0; }
             100%{ transform:none; opacity:1; }
         }
         @media (prefers-reduced-motion:reduce){
@@ -465,7 +487,28 @@
         .paused .circle-progress { animation:pulse 1.8s ease-in-out infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.22} }
 
-        /* Signal: Ende der Halteübung (nach 40 s Arbeitszeit) */
+        /* Signal 20 s vor Rundenende: der ganze Bildschirm blitzt zweimal in der
+           Arbeitsfarbe auf (aus der Entfernung gut sichtbar), der Ring pulsiert mit.
+           Zwei Blitze in rund einer Sekunde — unter der Grenze von drei Blitzen pro Sekunde. */
+        .screen-flash{
+            position:fixed; inset:0; z-index:400; pointer-events:none; opacity:0;
+            background:
+                radial-gradient(ellipse at 50% 50%, rgba(0,229,160,.38) 0%, rgba(0,229,160,.55) 70%, rgba(0,229,160,.75) 100%);
+            box-shadow:inset 0 0 0 6px rgba(0,229,160,.9);
+        }
+        .screen-flash.on{ animation:screenFlash 1.05s ease-out 1 both; }
+        @keyframes screenFlash{
+            0%   { opacity:0; }
+            8%   { opacity:1; }
+            26%  { opacity:.06; }
+            44%  { opacity:1; }
+            100% { opacity:0; }
+        }
+        @media (prefers-reduced-motion:reduce){
+            /* nur ein ruhiger, einzelner Puls statt zweier Blitze */
+            .screen-flash.on{ animation:screenFlashSoft 1.2s ease-in-out 1 both; }
+            @keyframes screenFlashSoft{ 0%{opacity:0} 30%{opacity:.7} 100%{opacity:0} }
+        }
         .hold-flash{ animation:holdFlash .95s ease-out 1; }
         @keyframes holdFlash{
             0%   { filter:none; transform:scale(1); }
@@ -720,6 +763,7 @@
 <!-- App -->
 <button id="presentToggleBtn" class="present-toggle" aria-label="Präsentationsmodus" title="Präsentationsmodus" onclick="togglePresentationMode()">⛶</button>
 
+<div id="screenFlash" class="screen-flash" aria-hidden="true"></div>
 <div class="app-container">
     <div class="ring-wrapper" style="flex-shrink:0;width:100%;display:flex;flex-direction:column;align-items:center">
         <div class="mode-switcher">
@@ -865,26 +909,37 @@ let mode='interval', isMSTMode=false;
 let animationFrame=null,startTime=0,pausedAt=0,wakeLock=null,isActionLocked=false;
 let duration=0,phase='prep',currentRound=1,isRunning=false,isPaused=false;
 let splits=[],lastBeepSec=null,totalWorkoutDuration=0,workoutElapsedAtStart=0;
-const HOLD_FLASH_AT=40; // Sekunden Arbeitszeit, nach denen das Signal kommt
+const FLASH_REMAINING=20;     // Signal bei 20 s Restzeit der Arbeitsphase
+const FLASH_MIN_DURATION=30;  // nur bei laengeren Runden (EMOM), nicht im 20-s-Tabata
 let holdFlashDone=false;
 
 // Vorlauf fuer die Vorschau der naechsten Uebung, abhaengig von der Rundenlaenge:
 // lange Runden (EMOM-Minute) 15 s, kurze (Tabata 20 s) 10 s.
 let previewNext=false;
+// Wechsel auf die naechste Uebung so frueh starten, dass die Walze 3 s vor dem
+// naechsten Arbeitsbeginn fertig ist (Walze rund 2 s -> Start bei 5 s vorher).
+// Bei Tabata reicht die Pause dafuer, dort bleibt der Wechsel am Pausenbeginn.
+const SWITCH_DONE_BEFORE=3, ROLL_SECONDS=2;
+let switchAhead=false;
 function previewLeadFor(d){
     if(d>30) return 15;
     if(d>=15) return 10;
     return 0; // zu kurz fuer eine sinnvolle Vorschau
 }
 
-// Kurzes doppeltes Aufflackern des Timers als Signal, dass die 40 s der Halteübungen um sind.
+// Doppeltes Aufflackern des ganzen Bildschirms (plus Ring) 20 s vor Rundenende —
+// bei der EMOM-Minute also nach 40 s, passend zum Ende der Halteuebungen.
 function triggerHoldFlash(){
-    const el=document.getElementById('timerContainer');
-    if(!el)return;
-    el.classList.remove('hold-flash');
-    void el.offsetWidth; // Reflow erzwingen, damit die Animation erneut startet
-    el.classList.add('hold-flash');
-    setTimeout(()=>el.classList.remove('hold-flash'),1000);
+    const restart=(el,cls,ms)=>{
+        if(!el)return;
+        clearTimeout(el._flashT);
+        el.classList.remove(cls);
+        void el.offsetWidth; // Reflow erzwingen, damit die Animation erneut startet
+        el.classList.add(cls);
+        el._flashT=setTimeout(()=>el.classList.remove(cls),ms);
+    };
+    restart(document.getElementById('screenFlash'),'on',1300);
+    restart(document.getElementById('timerContainer'),'hold-flash',1000);
     if(navigator.vibrate)navigator.vibrate([60,60,60]);
 }
 let mstStageIndex=0;
@@ -964,7 +1019,7 @@ function blockOptionsSignature(){
 let boSignature=null;
 // Walzenwechsel (Slot-Machine): alter Block kippt nach hinten weg, neuer rollt von unten ein.
 let boLastActive=-1, boRollTimer=null;
-const BO_ROLL_MS=1350;
+const BO_ROLL_MS=2300;        // etwas laenger als die laengste Teilanimation
 function boRollSwap(container,fromIdx,toIdx){
     const kids=container.children;
     const from=kids[fromIdx], to=kids[toIdx];
@@ -1018,13 +1073,14 @@ function renderBlockOptions(){
     }
     // In der Pause (Tabata) schon die kommende Position zeigen — dort wird sie gebraucht.
     const isRest=phase==='rest';
-    const effRound=isRest?currentRound+1:currentRound;
+    const ahead=isRest||(switchAhead&&phase==='work');   // naechste Uebung steht schon
+    const effRound=ahead?currentRound+1:currentRound;
     const activeIdx=(effRound-1)%positionsData.length;
     const showActive=isRunning&&phase!=='prep';
     // Gegen Rundenende die kommende Position zusaetzlich einblenden, solange noch
     // gearbeitet wird — nur sinnvoll, wenn sie sich von der aktuellen unterscheidet.
     const nextIdx=currentRound%positionsData.length;
-    const showNext=previewNext&&!isRest&&positionsData.length>1&&nextIdx!==activeIdx;
+    const showNext=previewNext&&!ahead&&positionsData.length>1&&nextIdx!==activeIdx;
     container.classList.toggle('preview',!showActive);
     // Echter Wechsel der aktiven Position waehrend des Laufs -> Walze drehen.
     const nowActive=showActive?activeIdx:-1;
@@ -1038,7 +1094,7 @@ function renderBlockOptions(){
         const isCollapsed=showActive&&!isActive&&!isNext;
         el.classList.toggle('active',isActive);
         el.classList.toggle('collapsed',isCollapsed);
-        el.classList.toggle('upcoming',isActive&&isRest);
+        el.classList.toggle('upcoming',isActive&&ahead);
         el.classList.toggle('preview-next',isNext);
     });
 }
@@ -1195,7 +1251,7 @@ function setActivePreset(name){
 }
 function setMode(m, keepMST){
     if(animationFrame)cancelAnimationFrame(animationFrame);
-    isRunning=false;isPaused=false;mode=m;previewNext=false;
+    isRunning=false;isPaused=false;mode=m;previewNext=false;switchAhead=false;
     resetCountdownOverlay();
     if(!keepMST){isMSTMode=false;setActivePreset(null);}
 
@@ -1478,7 +1534,7 @@ function setAccentColor(col,raw){
 }
 function runPhase(p,d){
     if(!isRunning)return;
-    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;lastMSUpdateSec=-1;holdFlashDone=false;previewNext=false;
+    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;lastMSUpdateSec=-1;holdFlashDone=false;previewNext=false;switchAhead=false;
     resetCountdownOverlay();
     const cols={prep:'var(--accent-prep)',work:'var(--accent-work)',rest:'var(--accent-rest)'};
     const raws={prep:'#4d9fff',work:'#00e5a0',rest:'#ff3d6b'};
@@ -1509,8 +1565,16 @@ function updateInterval(ts){
             renderBlockOptions();
         }
     }
-    // Signal nach 40 s Arbeitszeit: Ende der Halteübungen (30–40 s)
-    if(phase==='work'&&!holdFlashDone&&elapsed>=HOLD_FLASH_AT&&duration>HOLD_FLASH_AT){
+    // Walzenwechsel so frueh starten, dass er 3 s vor Beginn der naechsten Uebung
+    // abgeschlossen ist. Zaehlt die Pause mit: bei Tabata (10 s Pause) greift das nie,
+    // dort wechselt die Anzeige wie bisher zu Pausenbeginn.
+    if(phase==='work'&&!switchAhead&&!isMSTMode&&currentRound<config.rounds&&duration>=15
+       &&positionsData.length>1&&remaining+config.rest<=SWITCH_DONE_BEFORE+ROLL_SECONDS){
+        switchAhead=true;
+        renderBlockOptions();
+    }
+    // Signal bei 20 s Restzeit (EMOM-Minute: nach 40 s, Ende der Halteuebungen)
+    if(phase==='work'&&!isMSTMode&&!holdFlashDone&&duration>FLASH_MIN_DURATION&&remaining<=FLASH_REMAINING){
         holdFlashDone=true;
         triggerHoldFlash();
     }
