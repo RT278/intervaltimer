@@ -903,19 +903,22 @@ let positionsData=[]; // [{tag, options:[...]}, ...] — full option menu per po
 try{
     const qp=new URLSearchParams(location.search);
     if(qp.has('workMin')||qp.has('workSec')||qp.has('rest')||qp.has('rounds')||qp.has('prep')){
+        // Werte aus dem Link auf sinnvolle Bereiche begrenzen (kaputte/zu grosse Werte abfangen)
+        const num=(k,def,lo,hi)=>{const v=Math.round(Number(qp.get(k)));return qp.has(k)&&isFinite(v)?Math.min(hi,Math.max(lo,v)):def;};
         config={
-            prep: qp.has('prep')?Number(qp.get('prep')):config.prep,
-            workMin: qp.has('workMin')?Number(qp.get('workMin')):config.workMin,
-            workSec: qp.has('workSec')?Number(qp.get('workSec')):config.workSec,
-            rest: qp.has('rest')?Number(qp.get('rest')):config.rest,
-            rounds: qp.has('rounds')?Number(qp.get('rounds')):config.rounds,
+            prep: num('prep',config.prep,0,60),
+            workMin: num('workMin',config.workMin,0,59),
+            workSec: num('workSec',config.workSec,0,59),
+            rest: num('rest',config.rest,0,600),
+            rounds: num('rounds',config.rounds,1,99),
         };
+        if(config.workMin===0&&config.workSec===0) config.workSec=1;
     }
     if(qp.has('options')){
         // Format: "Tag1:OptA~OptB~OptC|Tag2:OptA~OptB"
         positionsData=qp.get('options').split('|').map(posStr=>{
             const sepIdx=posStr.indexOf(':');
-            const tag=sepIdx>=0?posStr.slice(0,sepIdx):'';
+            const tag=(sepIdx>=0?posStr.slice(0,sepIdx):'').trim().slice(0,40);
             const optsStr=sepIdx>=0?posStr.slice(sepIdx+1):posStr;
             // Jede Option ist "Name" oder "Name^Vorgabe"
             const options=optsStr.split('~').map(s=>{
@@ -923,8 +926,8 @@ try{
                 if(!raw)return null;
                 const dIdx=raw.indexOf('^');
                 return dIdx>=0
-                    ? {name:raw.slice(0,dIdx).trim(), dose:raw.slice(dIdx+1).trim()}
-                    : {name:raw, dose:''};
+                    ? {name:raw.slice(0,dIdx).trim().slice(0,60), dose:raw.slice(dIdx+1).trim().slice(0,50)}
+                    : {name:raw.slice(0,60), dose:''};
             }).filter(o=>o&&o.name);
             return {tag, options};
         }).filter(p=>p.options.length>0);
@@ -980,15 +983,17 @@ function boRollSwap(container,fromIdx,toIdx){
 
 // Baut die Liste einmalig auf. Danach werden nur noch Klassen umgeschaltet,
 // damit die CSS-Uebergaenge auf bestehenden Elementen laufen koennen.
+// Uebungstexte kommen aus der URL (auch Freitext eigener Uebungen) -> nur escaped einsetzen
+function escHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function buildBlockOptions(container){
     container.innerHTML=positionsData.map((p,i)=>{
         const opts=p.options.map(o=>
-            `<li><span class="bo-name">${o.name}</span>${o.dose?`<span class="bo-dose">${o.dose}</span>`:''}</li>`
+            `<li><span class="bo-name">${escHtml(o.name)}</span>${o.dose?`<span class="bo-dose">${escHtml(o.dose)}</span>`:''}</li>`
         ).join('');
         return `<div class="bo-position" data-i="${i}"><div class="bo-inner">`
              + `<div class="bo-head"><span class="bo-dot"></span>`
              + `<span class="bo-next">Gleich</span>`
-             + `<span class="bo-tag">${p.tag}</span>`
+             + `<span class="bo-tag">${escHtml(p.tag)}</span>`
              + `<span class="bo-count">${p.options.length} Optionen</span></div>`
              + `<div class="bo-body"><ul class="bo-options">${opts}</ul></div>`
              + `</div></div>`;
