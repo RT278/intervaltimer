@@ -299,6 +299,13 @@
                 grid-template-rows:0fr; opacity:0; margin:0; padding:0; border-top:none;
             }
             body.presentation-mode .bo-position.active{ background:none; }
+            body.presentation-mode .bo-position.bo-roll-out{
+                transition-delay:.22s, .3s, .22s, .22s;
+            }
+            body.presentation-mode .bo-position.bo-roll-out .bo-head{
+                transform-origin:0% 100%;
+                animation:boTipBack .4s cubic-bezier(.55,.05,.8,.4) both;
+            }
             body.presentation-mode .bo-position.collapsed .bo-options li{
                 opacity:0; transform:translateY(12px);
             }
@@ -335,7 +342,8 @@
             body.presentation-mode .bo-position.preview-next .bo-options li{
                 opacity:1; transform:none;
             }
-            body.presentation-mode .bo-count{ display:none; }
+            body.presentation-mode .bo-count,
+            body.presentation-mode .bo-position.collapsed .bo-count{ display:none; }
             body.presentation-mode .bo-options{
                 gap:0; align-items:stretch;
             }
@@ -402,8 +410,56 @@
         }
         .countdown-overlay.beat span{ animation:heartbeat var(--beat-dur,1s) cubic-bezier(.22,.9,.3,1) 1 both; }
 
+        /* Walzenwechsel wie am Spielautomaten: die alten Zeilen kippen ueber ihre
+           Unterkante nach hinten weg, die neuen rollen von unten herauf und rasten
+           mit einem kleinen Nachfedern ein. Zeilen laufen versetzt, wie einzelne Walzen. */
+        .bo-position.bo-roll-out .bo-options li{
+            transform-origin:50% 100%;
+            animation:boTipBack .46s cubic-bezier(.55,.05,.8,.4) both;
+        }
+        .bo-position.bo-roll-out .bo-options li:nth-child(2){ animation-delay:.06s; }
+        .bo-position.bo-roll-out .bo-options li:nth-child(3){ animation-delay:.12s; }
+        /* Hoehe des alten Blocks erst einklappen, wenn das Kippen begonnen hat */
+        .bo-position.bo-roll-out .bo-body{ transition-delay:.2s; }
+
+        .bo-position.bo-roll-in .bo-options li{
+            transform-origin:50% 50%;
+            animation:boRollIn .95s linear both;
+        }
+        .bo-position.bo-roll-in .bo-options li:nth-child(2){ animation-delay:.08s; }
+        .bo-position.bo-roll-in .bo-options li:nth-child(3){ animation-delay:.16s; }
+        /* Gross werden erst, wenn die Zeile hinter der Walze verschwunden ist —
+           zeitgleich mit dem Einklappen des alten Blocks, so bleibt die Gesamthoehe ruhig. */
+        .bo-position.bo-roll-in .bo-options li,
+        .bo-position.bo-roll-in .bo-dose{ transition-delay:.21s; }
+        .bo-position.bo-roll-in .bo-options li:nth-child(2),
+        .bo-position.bo-roll-in .bo-options li:nth-child(2) .bo-dose{ transition-delay:.29s; }
+        .bo-position.bo-roll-in .bo-options li:nth-child(3),
+        .bo-position.bo-roll-in .bo-options li:nth-child(3) .bo-dose{ transition-delay:.37s; }
+        .bo-position.bo-roll-in .bo-head{ animation:boHeadIn .5s cubic-bezier(.2,.75,.3,1) .12s both; }
+
+        @keyframes boTipBack{
+            0%  { transform:perspective(700px) rotateX(0deg);   opacity:1; }
+            100%{ transform:perspective(700px) translateY(-35%) rotateX(88deg); opacity:0; }
+        }
+        /* Anlauf: die Vorschauzeile holt kurz nach unten aus und verschwindet hinter
+           der Walze, dann rollt sie gross von unten herauf und federt beim Einrasten. */
+        @keyframes boRollIn{
+            0%  { transform:perspective(700px) translateY(0) rotateX(0deg);
+                  animation-timing-function:cubic-bezier(.55,.05,.85,.4); }
+            22% { transform:perspective(700px) translateY(55%) rotateX(-78deg); opacity:0;
+                  animation-timing-function:cubic-bezier(.2,.7,.35,1); }
+            78% { transform:perspective(700px) translateY(-3%) rotateX(6deg); opacity:1;
+                  animation-timing-function:cubic-bezier(.4,0,.4,1); }
+            100%{ transform:perspective(700px) translateY(0)   rotateX(0deg); }
+        }
+        @keyframes boHeadIn{
+            0%  { transform:translateY(14px); opacity:0; }
+            100%{ transform:none; opacity:1; }
+        }
         @media (prefers-reduced-motion:reduce){
             .bo-position, .bo-body, .bo-inner, .bo-options li{ transition-duration:.01ms !important; }
+            .bo-roll-out .bo-options li, .bo-roll-in .bo-options li, .bo-roll-in .bo-head{ animation:none !important; }
         }
         /* Paused */
         .paused .circle-progress { animation:pulse 1.8s ease-in-out infinite; }
@@ -903,6 +959,24 @@ function blockOptionsSignature(){
     return positionsData.map(p=>p.tag+'\u0001'+p.options.map(o=>o.name+'\u0002'+(o.dose||'')).join('\u0003')).join('\u0004');
 }
 let boSignature=null;
+// Walzenwechsel (Slot-Machine): alter Block kippt nach hinten weg, neuer rollt von unten ein.
+let boLastActive=-1, boRollTimer=null;
+const BO_ROLL_MS=1350;
+function boRollSwap(container,fromIdx,toIdx){
+    const kids=container.children;
+    const from=kids[fromIdx], to=kids[toIdx];
+    if(!from||!to)return;
+    if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    clearTimeout(boRollTimer);
+    Array.prototype.forEach.call(kids,k=>k.classList.remove('bo-roll-out','bo-roll-in'));
+    void container.offsetWidth;                // Animation sicher neu starten
+    from.classList.add('bo-roll-out');
+    to.classList.add('bo-roll-in');
+    boRollTimer=setTimeout(()=>{
+        from.classList.remove('bo-roll-out');
+        to.classList.remove('bo-roll-in');
+    },BO_ROLL_MS);
+}
 
 // Baut die Liste einmalig auf. Danach werden nur noch Klassen umgeschaltet,
 // damit die CSS-Uebergaenge auf bestehenden Elementen laufen koennen.
@@ -925,12 +999,13 @@ function renderBlockOptions(){
     const container=document.getElementById('blockOptions');
     if(!container)return;
     if(!positionsData.length||mode!=='interval'||isMSTMode){
-        container.innerHTML=''; boSignature=null; return;
+        container.innerHTML=''; boSignature=null; boLastActive=-1; return;
     }
     // Nur bei wirklich neuem Inhalt neu aufbauen — sonst ginge jede Animation verloren.
     const sig=blockOptionsSignature();
     if(sig!==boSignature){
         boSignature=sig;
+        boLastActive=-1;
         container.classList.add('bo-nofx');   // Aufbau nicht animieren
         buildBlockOptions(container);
         void container.offsetWidth;
@@ -946,6 +1021,12 @@ function renderBlockOptions(){
     const nextIdx=currentRound%positionsData.length;
     const showNext=previewNext&&!isRest&&positionsData.length>1&&nextIdx!==activeIdx;
     container.classList.toggle('preview',!showActive);
+    // Echter Wechsel der aktiven Position waehrend des Laufs -> Walze drehen.
+    const nowActive=showActive?activeIdx:-1;
+    if(nowActive!==boLastActive){
+        if(boLastActive>=0&&nowActive>=0)boRollSwap(container,boLastActive,nowActive);
+        boLastActive=nowActive;
+    }
     Array.prototype.forEach.call(container.children,(el,i)=>{
         const isActive=showActive&&i===activeIdx;
         const isNext=showNext&&i===nextIdx&&!isActive;
