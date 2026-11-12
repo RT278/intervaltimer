@@ -172,6 +172,21 @@
         }
         .bo-position.active.upcoming .bo-tag{ color:var(--text-mid); }
         .bo-position.active.upcoming{ background:none; }
+        /* Vorschau gegen Rundenende: sichtbar, aber klar nachrangig zur laufenden Uebung */
+        .bo-position.preview-next{
+            opacity:.62;
+            animation:previewIn .45s ease both;
+        }
+        .bo-position.preview-next .bo-dot{ background:var(--text-mid); box-shadow:none; }
+        .bo-position.preview-next .bo-tag{ color:var(--text-mid); }
+        .bo-position.preview-next .bo-options li{ font-weight:500; }
+        @keyframes previewIn{
+            from{ opacity:0; transform:translateY(-6px); }
+            to{ opacity:.62; transform:translateY(0); }
+        }
+        @media (prefers-reduced-motion:reduce){
+            .bo-position.preview-next{ animation:none; }
+        }
         .bo-count{ font-family:'Outfit',sans-serif; font-size:.7rem; color:var(--text-dim); }
         .bo-options{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; align-items:center; }
         .bo-options li{
@@ -277,6 +292,24 @@
             }
             body.presentation-mode .bo-position.active.upcoming .bo-options li{
                 color:var(--text-main); opacity:.78;
+            }
+            body.presentation-mode .bo-position.preview-next{
+                margin-top:clamp(22px,3.4vh,40px);
+                padding-top:clamp(18px,2.6vh,30px);
+                border-top:1px solid rgba(255,255,255,0.08);
+                opacity:.5;
+            }
+            body.presentation-mode .bo-position.preview-next .bo-head{
+                margin-bottom:clamp(10px,1.4vh,16px);
+            }
+            body.presentation-mode .bo-position.preview-next .bo-tag{ font-size:.95rem; }
+            body.presentation-mode .bo-position.preview-next .bo-options li{
+                font-size:clamp(1.15rem,1.7vw,1.6rem); padding:clamp(5px,.8vh,9px) 0;
+            }
+            body.presentation-mode .bo-position.preview-next .bo-dose{ display:none; }
+            @keyframes previewIn{
+                from{ opacity:0; transform:translateY(-6px); }
+                to{ opacity:.5; transform:translateY(0); }
             }
             body.presentation-mode .bo-count{ display:none; }
             body.presentation-mode .bo-options{
@@ -752,6 +785,15 @@ let splits=[],lastBeepSec=null,totalWorkoutDuration=0,workoutElapsedAtStart=0;
 const HOLD_FLASH_AT=40; // Sekunden Arbeitszeit, nach denen das Signal kommt
 let holdFlashDone=false;
 
+// Vorlauf fuer die Vorschau der naechsten Uebung, abhaengig von der Rundenlaenge:
+// lange Runden (EMOM-Minute) 15 s, kurze (Tabata 20 s) 10 s.
+let previewNext=false;
+function previewLeadFor(d){
+    if(d>30) return 15;
+    if(d>=15) return 10;
+    return 0; // zu kurz fuer eine sinnvolle Vorschau
+}
+
 // Kurzes doppeltes Aufflackern des Timers als Signal, dass die 40 s der Halteübungen um sind.
 function triggerHoldFlash(){
     const el=document.getElementById('timerContainer');
@@ -839,13 +881,19 @@ function renderBlockOptions(){
     const effRound=isRest?currentRound+1:currentRound;
     const activeIdx=(effRound-1)%positionsData.length;
     const showActive=isRunning&&phase!=='prep';
+    // Gegen Rundenende die kommende Position zusaetzlich einblenden, solange noch
+    // gearbeitet wird — nur sinnvoll, wenn sie sich von der aktuellen unterscheidet.
+    const nextIdx=currentRound%positionsData.length;
+    const showNext=previewNext&&!isRest&&positionsData.length>1&&nextIdx!==activeIdx;
     container.classList.toggle('preview',!showActive);
     container.innerHTML=positionsData.map((p,i)=>{
         const isActive=showActive&&i===activeIdx;
-        const isCollapsed=showActive&&i!==activeIdx;
-        const cls='bo-position'+(isActive?' active':'')+(isCollapsed?' collapsed':'')+(isActive&&isRest?' upcoming':'');
+        const isNext=showNext&&i===nextIdx&&!isActive;
+        const isCollapsed=showActive&&!isActive&&!isNext;
+        const cls='bo-position'+(isActive?' active':'')+(isCollapsed?' collapsed':'')
+                 +(isActive&&isRest?' upcoming':'')+(isNext?' preview-next':'');
         const countHtml=isCollapsed?`<span class="bo-count">${p.options.length} Optionen</span>`:'';
-        const nextHtml=(isActive&&isRest)?'<span class="bo-next">Gleich</span>':'';
+        const nextHtml=((isActive&&isRest)||isNext)?'<span class="bo-next">Gleich</span>':'';
         const headHtml=`<div class="bo-head"><span class="bo-dot"></span>${nextHtml}<span class="bo-tag">${p.tag}</span>${countHtml}</div>`;
         const optsHtml=isCollapsed?'':`<ul class="bo-options">${p.options.map(o=>`<li><span class="bo-name">${o.name}</span>${o.dose?`<span class="bo-dose">${o.dose}</span>`:''}</li>`).join('')}</ul>`;
         return `<div class="${cls}">${headHtml}${optsHtml}</div>`;
@@ -1004,7 +1052,7 @@ function setActivePreset(name){
 }
 function setMode(m, keepMST){
     if(animationFrame)cancelAnimationFrame(animationFrame);
-    isRunning=false;isPaused=false;mode=m;
+    isRunning=false;isPaused=false;mode=m;previewNext=false;
     resetCountdownOverlay();
     if(!keepMST){isMSTMode=false;setActivePreset(null);}
 
@@ -1287,7 +1335,7 @@ function setAccentColor(col,raw){
 }
 function runPhase(p,d){
     if(!isRunning)return;
-    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;lastMSUpdateSec=-1;holdFlashDone=false;
+    phase=p;duration=d;startTime=performance.now();lastBeepSec=null;lastMSUpdateSec=-1;holdFlashDone=false;previewNext=false;
     resetCountdownOverlay();
     const cols={prep:'var(--accent-prep)',work:'var(--accent-work)',rest:'var(--accent-rest)'};
     const raws={prep:'#4d9fff',work:'#00e5a0',rest:'#ff3d6b'};
@@ -1310,6 +1358,14 @@ function updateInterval(ts){
     timeDisplay.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     if(remaining<=10.1&&remaining>0.1&&lastBeepSec!==_cs){playCountdownTick(_cs);lastBeepSec=_cs;}
     updateCountdownOverlay(remaining,_cs);
+    // Gegen Rundenende die naechste Uebung einblenden
+    if(phase==='work'&&!previewNext&&currentRound<config.rounds){
+        const lead=previewLeadFor(duration);
+        if(lead>0&&remaining<=lead){
+            previewNext=true;
+            renderBlockOptions();
+        }
+    }
     // Signal nach 40 s Arbeitszeit: Ende der Halteübungen (30–40 s)
     if(phase==='work'&&!holdFlashDone&&elapsed>=HOLD_FLASH_AT&&duration>HOLD_FLASH_AT){
         holdFlashDone=true;
